@@ -19,10 +19,10 @@ export function playPuzzle(spec, opts) {
 
   if (spec.type === 'dosage') {
     mount(DosageView(opts.root, { ...base, level: spec.level, title: opts.title, subtitle: opts.subtitle, tip: opts.tip,
-      onWin: (r) => opts.onWin({ stars: r.stars, cost: r.cost, detail: `${r.moves} coups (optimum ${spec.level.par})`, close: () => current?.destroy() }) }));
+      onWin: (r) => opts.onWin({ stars: r.stars, cost: r.cost, detail: `${r.moves} coups (optimum ${spec.level.par})`, hintUsed: r.hintUsed, close: () => current?.destroy() }) }));
   } else if (spec.type === 'pipes') {
     mount(PipesView(opts.root, { ...base, level: spec.level, title: opts.title, subtitle: opts.subtitle, tip: opts.tip,
-      onWin: (r) => opts.onWin({ stars: r.stars, cost: r.cost, detail: `${r.pieces} pièces (référence ${spec.level.par})`, close: () => current?.destroy() }) }));
+      onWin: (r) => opts.onWin({ stars: r.stars, cost: r.cost, detail: spec.level.par ? `${r.pieces} pièces (référence ${spec.level.par})` : 'Vannes réglées !', hintUsed: r.hintUsed, close: () => current?.destroy() }) }));
   } else {
     mount(PipesView(opts.root, { ...base, level: spec.pipe, title: opts.title, subtitle: 'Étape 1/2 · Tuyauterie', tip: opts.tip,
       onWin: (r1) => {
@@ -37,7 +37,7 @@ export function playPuzzle(spec, opts) {
             mount(DosageView(opts.root, { ...base, level: spec.dosage, title: opts.title, subtitle: 'Étape 2/2 · Dosage',
               onWin: (r2) => opts.onWin({
                 stars: Math.floor((r1.stars + r2.stars) / 2), cost: r1.cost + r2.cost,
-                detail: `Réseau : ${r1.pieces} pièces · Dosage : ${r2.moves} coups`, close: () => current?.destroy(),
+                detail: `Réseau : ${r1.pieces} pièces · Dosage : ${r2.moves} coups`, hintUsed: r1.hintUsed || r2.hintUsed, close: () => current?.destroy(),
               }) }));
           } }],
         });

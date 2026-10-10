@@ -1,6 +1,6 @@
 // Générateur de niveaux de Dosage : explore les produits atteignables puis vérifie au solveur.
 import { Rng } from '../core/rng.js';
-import { initialState } from './engine.js';
+import { initialState, applyMove } from './engine.js';
 import { solve, exploreProducts } from './solver.js';
 
 const PURE = { R: [1, 0, 0, 0], Y: [0, 1, 0, 0], B: [0, 0, 1, 0], W: [0, 0, 0, 1] };
@@ -29,7 +29,7 @@ export function generateDosage(cfg) {
       const k = rng.int(0, sources.length - 1);
       sources[k].stock = rng.int(cfg.stockRange[0], cfg.stockRange[1]);
     }
-    const base = { caps, sources, orders: [] };
+    const base = { caps, sources, orders: [], reactions: cfg.reactions };
     const products = [...exploreProducts(base, initialState(base), {
       maxDepth: cfg.par[1], maxNodes: cfg.exploreNodes ?? 60000,
     }).values()].filter((p) => p.vol >= (cfg.minVol ?? 2) && simpleRatio(p.ratio, cfg.maxPart ?? 4)
@@ -50,11 +50,31 @@ export function generateDosage(cfg) {
       }
       if (picked.length < nOrders) break;
       const lv = { caps, sources, orders: picked.map((p) => ({ vol: p.vol, ratio: p.ratio })) };
+      if (cfg.reactions) lv.reactions = cfg.reactions;
       const res = solve(lv, initialState(lv), { maxNodes: cfg.maxNodes ?? 150000 });
+      if (res && cfg.reactions && !reactionsMatter(lv, res, cfg.maxNodes ?? 150000)) continue;
       if (res && res.cost >= cfg.par[0] && res.cost <= cfg.par[1]) {
         return { ...lv, par: res.cost, solution: res.path };
       }
     }
   }
   return null;
+}
+
+/**
+ * Les réactions changent-elles vraiment la partie ? Oui si la solution optimale en déclenche une,
+ * ou si la solution « naïve » (calculée sans réactions) échoue ou coûte plus cher une fois les réactions actives.
+ */
+export function reactionsMatter(lv, res, maxNodes) {
+  let s = initialState(lv), fired = 0;
+  for (const m of res.path) { const r = applyMove(lv, s, m); fired += r.reactions.length; s = r.state; }
+  if (fired) return true;
+  const plain = { ...lv, reactions: undefined };
+  const naive = solve(plain, initialState(plain), { maxNodes });
+  if (!naive) return true;
+  if (naive.cost < res.cost) return true;
+  // La solution naïve rejouée avec réactions : déclenche-t-elle un piège ?
+  let t = initialState(lv);
+  for (const m of naive.path) { const r = applyMove(lv, t, m); if (r.reactions.length) return true; t = r.state; }
+  return false;
 }

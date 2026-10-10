@@ -13,6 +13,7 @@ export const ICON = {
   star: s('<path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>'),
   lock: s('<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/>'),
   check: s('<path d="M20 6L9 17l-5-5"/>'),
+  clock: s('<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6M12 2v3"/>'),
   calendar: s('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'),
   flask: s('<path d="M9 3h6M10 3v6L4 19a2 2 0 002 3h12a2 2 0 002-3l-6-10V3"/><path d="M7 15h10"/>'),
   pipe: s('<path d="M3 7h8a4 4 0 014 4v10"/><path d="M3 12h7a1 1 0 011 1v8"/>'),

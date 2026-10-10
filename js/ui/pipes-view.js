@@ -7,6 +7,8 @@ import { PIECES, PIECE_ORDER, openSides, route } from '../pipes/pieces.js';
 import { simulate } from '../pipes/sim.js';
 import { play, buzz } from '../audio.js';
 import { celebrate, centerIn } from './fx.js';
+import { setMusicIntensity, musicStinger } from '../music.js';
+import { track } from '../achievements.js';
 
 const SIDE_PT = [[50, 0], [100, 50], [50, 100], [0, 50]];
 const EMPTY_INNER = '#0b0a12';
@@ -25,16 +27,17 @@ const GEAR = (() => {
 })();
 
 /** Bras de tuyau en cuivre vers un côté, avec bride rivetée et liquide néon. */
-function arm(side, color, flow, dirOut, delay = null) {
+function arm(side, color, flow, dirOut, delay = null, strong = false, hp = false) {
   const lit = color !== EMPTY_INNER;
   const [y1, y2] = dirOut ? [50, 2] : [2, 50];
   // Le liquide « pousse » depuis l'extrémité par laquelle il arrive, avec un délai = temps de trajet.
   const anim = delay != null ? ` grow ${dirOut ? 'o-b' : 'o-t'}" style="animation-delay:${delay}ms` : '';
   const late = delay != null ? ` late" style="animation-delay:${delay + STEP}ms,${delay + STEP}ms` : '';
   return `<g transform="rotate(${side * 90} 50 50)">`
-    + '<rect x="34" y="-1" width="32" height="52" fill="url(#g-copper)"/>'
+    + `<rect x="34" y="-1" width="32" height="52" fill="url(#${strong ? 'g-brass' : 'g-copper'})"/>`
+    + (strong ? '<rect x="31" y="16" width="38" height="6" fill="#5a3f12"/><rect x="31" y="34" width="38" height="6" fill="#5a3f12"/>' : '')
     + `<rect class="pipe-in" x="42" y="0" width="16" height="50" fill="${EMPTY_INNER}"/>`
-    + (lit ? `<rect class="pipe-liq${anim}" x="42" y="0" width="16" height="50" fill="${color}" filter="url(#f-glow)"/>` : '')
+    + (lit ? `<rect class="pipe-liq${anim}${hp ? ' hp' : ''}" x="42" y="0" width="16" height="50" fill="${color}" filter="url(#f-glow)"/>` : '')
     + (flow ? `<line class="pipe-f${late}" x1="50" y1="${y1}" x2="50" y2="${y2}"/>` : '')
     + '<rect x="30" y="0" width="40" height="7" fill="url(#g-brass)"/><circle cx="34" cy="3.5" r="1.6" fill="#3a2a0c"/><circle cx="66" cy="3.5" r="1.6" fill="#3a2a0c"/>'
     + '</g>';
@@ -56,6 +59,7 @@ export function cellSvg(c, flows = new Map(), extra = {}) {
   if (!c) return '<svg viewBox="0 0 100 100"><path class="circuit" d="M44 50h12M50 44v12"/></svg>';
   const col = (side) => (flows.has(side) ? mixColor(flows.get(side).amounts) : EMPTY_INNER);
   const dl = (side) => flows.get(side)?.delay ?? null;
+  const hp = (side) => (flows.get(side)?.mag ?? 0) > 1;
   const dly = (d) => (d != null ? ` style="animation-delay:${d}ms"` : '');
   // Délai de la première sortie de la pièce (pour les effets au centre)
   const outDelay = [...flows.values()].filter((f) => f.out).map((f) => f.delay).find((d) => d != null) ?? null;
@@ -87,12 +91,20 @@ export function cellSvg(c, flows = new Map(), extra = {}) {
       + (got?.amounts ? `<circle class="${td != null ? 'pop' : ''}" cx="50" cy="50" r="15" fill="${fill}" filter="url(#f-glow)"${dly(td)}/>` : '')
       + (got?.amounts && td != null ? `<circle class="tank-wave" cx="50" cy="50" r="18" stroke="${fill}"${dly(td)}/>` : '')
       + (got?.ok ? `<path class="ok${td != null ? ' pop' : ''}" d="M39 51 L47 59 L62 42"${dly(td != null ? td + 200 : null)}/>` : '');
+  } else if (c.kind === 'valve') {
+    // Vanne : volant de laiton ; ouverte = anneau cyan, fermée = anneau rouge + vanne-guillotine
+    for (const sd of [c.axis, c.axis + 2]) body += arm(sd, col(sd), flows.has(sd), flows.get(sd)?.out, dl(sd), true, hp(sd));
+    if (!c.open) body += `<rect x="${c.axis ? 46 : 26}" y="${c.axis ? 26 : 46}" width="${c.axis ? 8 : 48}" height="${c.axis ? 48 : 8}" fill="#ff4f6d" filter="url(#f-glow)"/>`;
+    body += `<g class="${extra.toggled ? 'wheel-turn' : ''}"><circle cx="50" cy="50" r="19" fill="none" stroke="url(#g-brass-r)" stroke-width="6"/>`
+      + [0, 60, 120].map((a) => `<line x1="50" y1="33" x2="50" y2="67" stroke="#c79a45" stroke-width="3" transform="rotate(${a + (c.open ? 0 : 30)} 50 50)"/>`).join('')
+      + `<circle cx="50" cy="50" r="7" fill="${c.open ? '#04141a' : '#1a0408'}" stroke="${c.open ? '#26f2ff' : '#ff4f6d'}" stroke-width="2.5" filter="url(#f-glow)"/></g>`
+      + `<circle cx="50" cy="50" r="24" fill="none" stroke="${c.open ? '#26f2ff' : '#ff4f6d'}" stroke-width="1.5" opacity=".7"/>`;
   } else if (c.kind === 'pipe') {
     const P = PIECES[c.type];
     if (P.pairs) {
       P.pairs.forEach(([a, b]) => {
         const ra = (a + c.r) % 4, rb = (b + c.r) % 4;
-        for (const sd of [ra, rb]) body += arm(sd, col(sd), flows.has(sd), flows.get(sd)?.out, dl(sd));
+        for (const sd of [ra, rb]) body += arm(sd, col(sd), flows.has(sd), flows.get(sd)?.out, dl(sd), !!P.strong, hp(sd));
       });
       if (c.type === 'X') body += '<rect x="36" y="36" width="28" height="28" rx="4" fill="url(#g-brass-r)"/><circle cx="50" cy="50" r="5" fill="#26f2ff" filter="url(#f-glow)"/>';
       else if (c.type === 'L') {
@@ -102,8 +114,8 @@ export function cellSvg(c, flows = new Map(), extra = {}) {
       }
     } else {
       const rt = route(c.type, c.r, (P.ins[0] + c.r) % 4);
-      for (const sd of rt.ins) body += arm(sd, col(sd), flows.has(sd), false, dl(sd));
-      for (const sd of rt.outs) body += arm(sd, col(sd), flows.has(sd), true, dl(sd));
+      for (const sd of rt.ins) body += arm(sd, col(sd), flows.has(sd), false, dl(sd), false, hp(sd));
+      for (const sd of rt.outs) body += arm(sd, col(sd), flows.has(sd), true, dl(sd), false, hp(sd));
       const outCol = rt.outs.map(col).find((x) => x !== EMPTY_INNER);
       if (c.type === 'S') {
         body += `<path class="${outDelay != null ? 'gear-turn' : ''}" d="${GEAR}" fill="url(#g-brass-r)" stroke="#3a2a0c" stroke-width="1.5"${dly(outDelay)}/><circle cx="50" cy="50" r="13" fill="#04141a" stroke="#26f2ff" stroke-width="2" filter="url(#f-glow)"/><text x="50" y="56" class="hub-t">½</text>`;
@@ -120,6 +132,12 @@ export function cellSvg(c, flows = new Map(), extra = {}) {
     if (c.fixed) body += '<circle class="bolt" cx="10" cy="10" r="4"/><circle class="bolt" cx="90" cy="10" r="4"/><circle class="bolt" cx="10" cy="90" r="4"/><circle class="bolt" cx="90" cy="90" r="4"/>';
   }
   for (const e of extra.errors || []) {
+    if (e.kind === 'rupture') {
+      // Fissure + jet de vapeur côté surpression
+      body += `<g transform="rotate(${(e.side ?? 0) * 90} 50 50)"><path class="crack" d="M44 14 L52 22 L46 28 L55 36"/><circle class="steam-jet" cx="58" cy="22" r="7"/><circle class="steam-jet s2" cx="64" cy="16" r="5"/></g>`;
+      continue;
+    }
+    if (e.kind === 'bloqué') { body += '<circle class="blocked" cx="50" cy="50" r="30"/>'; continue; }
     if (e.side != null) {
       const [x, y] = SIDE_PT[e.side];
       const cx = (x + 50) / 2 + (x - 50) * 0.42, cy = (y + 50) / 2 + (y - 50) * 0.42;
@@ -148,6 +166,7 @@ export function PipesView(root, opts) {
   let hintUsed = false, finished = false, ghost = null;
   let prevKeys = new Set();
   let legendTimer = null;
+  let toggledCell = null, lastBurst = false;
 
   const view = el(`<div class="screen game pipes">
     <header class="bar">
@@ -173,7 +192,8 @@ export function PipesView(root, opts) {
     if (!lv.inventory[t]) continue;
     invEl.appendChild(el(`<button class="inv" data-tool="${t}" aria-label="${PIECES[t].name}">${pieceIcon(t)}<span class="inv-n"></span><small>${PIECES[t].name}</small></button>`));
   }
-  invEl.appendChild(el(`<button class="inv erase" data-tool="erase" aria-label="Retirer">${ICON.erase}<small>Retirer</small></button>`));
+  if (PIECE_ORDER.some((t) => lv.inventory[t])) invEl.appendChild(el(`<button class="inv erase" data-tool="erase" aria-label="Retirer">${ICON.erase}<small>Retirer</small></button>`));
+  else invEl.appendChild(el('<p class="inv-note">Aucune pièce à poser : touche les vannes pour les ouvrir ou les fermer.</p>'));
 
   if (opts.tip) {
     const tip = el(`<div class="tip-bubble">${opts.tip}<button class="tip-close" aria-label="Fermer">${ICON.close}</button></div>`);
@@ -191,7 +211,7 @@ export function PipesView(root, opts) {
   const placed = () => cells.filter((c) => c && c.kind === 'pipe' && !c.fixed).length;
 
   function render() {
-    const sim = simulate({ w: W, h: H, cells });
+    const sim = simulate({ w: W, h: H, cells, pressure: lv.pressure });
     const flows = new Map();
     // Seuls les segments nouveaux (ou dont la couleur change) sont animés, à partir du point modifié.
     const keyOf = (sg) => `${sg.idx}:${sg.side}:${mixColor(sg.amounts)}`;
@@ -203,7 +223,7 @@ export function PipesView(root, opts) {
       const m = flows.get(sg.idx);
       const delay = prevKeys.has(keyOf(sg)) ? null : (sg.t - t0) * STEP;
       if (delay != null) animEnd = Math.max(animEnd, delay + STEP);
-      if (!m.has(sg.side)) m.set(sg.side, { amounts: sg.amounts, out: sg.out, delay });
+      if (!m.has(sg.side)) m.set(sg.side, { amounts: sg.amounts, out: sg.out, delay, mag: sg.amounts.reduce((a, x) => a + Number(x), 0) });
     }
     prevKeys = new Set(sim.segments.map(keyOf));
     const tankDelay = (t) => (flows.get(t.idx)?.get(cells[t.idx].dir)?.delay != null ? (t.t - t0) * STEP : null);
@@ -213,7 +233,7 @@ export function PipesView(root, opts) {
     grid.querySelectorAll('.cell').forEach((ce, i) => {
       const c = cells[i];
       const showGhost = ghost && ghost.i === i && !c;
-      ce.innerHTML = showGhost ? cellSvg({ kind: 'pipe', type: ghost.type, r: ghost.r }) : cellSvg(c, flows.get(i), { errors: errBy.get(i), tank: tankBy.get(i), tankDelay: tankBy.has(i) ? tankDelay(tankBy.get(i)) : null });
+      ce.innerHTML = showGhost ? cellSvg({ kind: 'pipe', type: ghost.type, r: ghost.r }) : cellSvg(c, flows.get(i), { errors: errBy.get(i), tank: tankBy.get(i), tankDelay: tankBy.has(i) ? tankDelay(tankBy.get(i)) : null, toggled: toggledCell === i });
       ce.dataset.type = c?.type || '';
       ce.dataset.r = c?.r ?? '';
       ce.className = 'cell' + (c ? ' k-' + c.kind : ' empty') + (c?.fixed ? ' fixed' : '') + (errBy.has(i) ? ' err' : '') + (showGhost ? ' ghost' : '') + (ghost?.i === i && c ? ' hinted' : '');
@@ -236,11 +256,19 @@ export function PipesView(root, opts) {
         b.disabled = inv[t] <= 0 && tool !== t;
       }
     });
-    $('.moves').innerHTML = `Pièces : <b>${placed()}</b> · Réf. : ${lv.par}` + (opts.pieceCost ? ` · Coût : <b>${fmtGold(cost())}</b> or` : '');
+    $('.moves').innerHTML = (lv.par || placed() ? `Pièces : <b>${placed()}</b> · Réf. : ${lv.par}` : `Vannes : <b>${lv.valves.length}</b>`)
+      + (lv.pressure ? ' · <span class="psi">⚠ pression</span>' : '')
+      + (opts.pieceCost ? ` · Coût : <b>${fmtGold(cost())}</b> or` : '');
+    if (sim.errors.some((e) => e.kind === 'rupture') && !lastBurst) { play('burst'); buzz([40, 30, 60]); track({ bursts: 1 }); }
+    if (!finished) setMusicIntensity(0.3 + 0.55 * (sim.tanks.filter((t) => t.ok).length / Math.max(1, sim.tanks.length)) * (sim.errors.length ? 0.6 : 1));
+    lastBurst = sim.errors.some((e) => e.kind === 'rupture');
+    toggledCell = null;
     const kinds = new Set(sim.errors.map((e) => e.kind));
     const leaks = sim.errors.filter((e) => e.kind === 'fuite').length;
     let msg = '';
-    if (kinds.has('collision')) msg = 'Deux flux se percutent !';
+    if (kinds.has('rupture')) msg = 'Surpression : un tuyau cède !';
+    else if (kinds.has('bloqué')) msg = 'Une vanne bloque un flux.';
+    else if (kinds.has('collision')) msg = 'Deux flux se percutent !';
     else if (kinds.has('mélangeur')) msg = 'Un mélangeur attend son 2ᵉ flux.';
     else if (leaks) msg = `${leaks} fuite${leaks > 1 ? 's' : ''}`;
     else if (!sim.solved) msg = 'Proportions à ajuster';
@@ -266,7 +294,7 @@ export function PipesView(root, opts) {
     let stars = pieces <= lv.par ? 3 : pieces <= lv.par + 2 ? 2 : 1;
     if (hintUsed) stars = Math.min(2, stars);
     setTimeout(() => {
-      play('win'); buzz([30, 60, 30]);
+      play('win'); buzz([30, 60, 30]); musicStinger();
       view.classList.add('won');
       // Onde d'énergie qui parcourt le réseau, puis gerbes d'étincelles sur les cuves
       grid.querySelectorAll('.cell.k-pipe, .cell.k-src, .cell.k-tank').forEach((ce) => {
@@ -291,8 +319,13 @@ export function PipesView(root, opts) {
       snapshot();
       cells[i] = { kind: 'pipe', type: tool, r: lastRot[tool] || 0 };
       inv[tool]--;
-      play('place'); buzz(8);
+      play('place'); buzz(8); track({ pieces: 1 });
       if (inv[tool] <= 0) tool = PIECE_ORDER.find((t) => inv[t] > 0) || tool;
+    } else if (c.kind === 'valve') {
+      snapshot();
+      c.open = !c.open;
+      toggledCell = i;
+      play('valve'); buzz(12); track({ valves: 1 });
     } else if (c.kind === 'pipe' && !c.fixed) {
       snapshot();
       if (tool === 'erase') { cells[i] = null; inv[c.type]++; play('remove'); }
@@ -353,12 +386,14 @@ export function PipesView(root, opts) {
     const missing = sol.find((p) => !cells[p.i]);
     const stray = cells.findIndex((c, i) => c && c.kind === 'pipe' && !c.fixed && !sol.some((p) => p.i === i));
     let m;
+    const badValve = lv.valves.find((v) => cells[v.i].open !== v.open);
     if (wrong) { ghost = { i: wrong.i }; m = 'Cette pièce n\'est pas la bonne (ou mal orientée).'; }
+    else if (badValve && !missing) { ghost = { i: badValve.i }; m = badValve.open ? 'Ouvre cette vanne.' : 'Ferme cette vanne.'; }
     else if (missing) { ghost = { ...missing }; m = `Pose ici : ${PIECES[missing.type].name}, comme indiqué.`; }
     else if (stray >= 0) { ghost = { i: stray }; m = 'Cette pièce est superflue.'; }
     else { toast('Tout est en place !'); return; }
     if (opts.hints) opts.hints.use();
-    hintUsed = true; toast(m); render();
+    hintUsed = true; track({ hints: 1 }); toast(m); render();
   }
   const sameShape = (c, p) => {
     if (c.type !== p.type) return false;

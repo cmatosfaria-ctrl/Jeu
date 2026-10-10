@@ -59,3 +59,54 @@ test('étoiles', () => {
   assert.equal(starsFor(7, 4), 1);
   assert.equal(starsFor(4, 4, true), 2);
 });
+
+test('réactions : mousse, évaporation, cristallisation, explosion', () => {
+  const W = [0, 0, 0, 1];
+  const lv = { caps: [6, 3, 4], sources: [{ comp: Y }, { comp: W }, { comp: R }, { comp: B }], orders: [], reactions: ['boom', 'cristal', 'mousse', 'evap'] };
+  let s = initialState(lv);
+  s = applyMove(lv, s, { t: 'fill', s: 0, f: 1 }).state;            // 3 J
+  s = applyMove(lv, s, { t: 'pour', a: 1, b: 0 }).state;            // 3 J dans la grande
+  let r = applyMove(lv, s, { t: 'fill', s: 1, f: 0 });              // + 3 Bl -> 6, mousse : min(12, 6) = 6
+  assert.deepEqual(r.reactions.map((x) => x.type), ['mousse']);
+  assert.equal(r.state.flasks[0].vol, 6);
+  assert.deepEqual(flaskRatio(r.state.flasks[0]), [0, 1, 0, 1]);
+  // Évaporation : 4 Bl + rouge dans la fiole de 4 -> moitié
+  let t = initialState(lv);
+  t = applyMove(lv, t, { t: 'fill', s: 2, f: 1 }).state;            // 3 R
+  r = applyMove(lv, t, { t: 'pour', a: 1, b: 2 });                  // 3 R dans la fiole de 4
+  r = applyMove(lv, r.state, { t: 'fill', s: 1, f: 2 });            // +1 Bl => 4, évap => 2
+  assert.deepEqual(r.reactions.map((x) => x.type), ['evap']);
+  assert.equal(r.state.flasks[2].vol, 2);
+  assert.deepEqual(flaskRatio(r.state.flasks[2]), [3, 0, 0, 1]);
+  // Cristallisation : plus de versement possible, mais livraison / évier oui
+  let u = initialState(lv);
+  u = applyMove(lv, u, { t: 'fill', s: 3, f: 1 }).state;
+  r = applyMove(lv, u, { t: 'pour', a: 1, b: 2 });
+  r = applyMove(lv, r.state, { t: 'fill', s: 1, f: 2 });
+  assert.equal(r.state.flasks[2].solid, true);
+  assert.match(checkMove(lv, r.state, { t: 'pour', a: 2, b: 0 }), /cristallisé/);
+  assert.equal(checkMove(lv, r.state, { t: 'empty', f: 2 }), null);
+  // Explosion : R + J + B
+  let v = initialState(lv);
+  v = applyMove(lv, v, { t: 'fill', s: 2, f: 1 }).state;
+  v = applyMove(lv, v, { t: 'pour', a: 1, b: 0 }).state;            // 3 R dans la grande
+  v = applyMove(lv, v, { t: 'fill', s: 3, f: 1 }).state;
+  v = applyMove(lv, v, { t: 'pour', a: 1, b: 2 }).state;            // 3 B dans la fiole de 4
+  v = applyMove(lv, v, { t: 'fill', s: 0, f: 1 }).state;
+  r = applyMove(lv, v, { t: 'pour', a: 1, b: 2 });                  // + 1 J : B + J, pas de réaction
+  assert.deepEqual(r.reactions, []);
+  r = applyMove(lv, r.state, { t: 'pour', a: 2, b: 0 });            // vers R : R + J + B => boum
+  assert.deepEqual(r.reactions.map((x) => x.type), ['boom']);
+  assert.equal(r.state.flasks[0].vol, 0);
+});
+
+test('réactions : le solveur les exploite', () => {
+  // 6 doses de J:Bl 1:1 avec une seule fiole de 6 : 3 J + 3 Bl suffisent grâce à la mousse ? non (déjà plein),
+  // mais avec 2 J puis 1 Bl dans une fiole de 6 : 3 doses -> mousse -> 6 doses en 3 coups au lieu de plus.
+  const lv = { caps: [6, 2, 1], sources: [{ comp: Y }, { comp: [0, 0, 0, 1] }], orders: [{ vol: 6, ratio: [0, 2, 0, 1] }], reactions: ['mousse'] };
+  const r = solve(lv, initialState(lv));
+  assert.ok(r && r.cost <= 5);
+  let s = initialState(lv);
+  for (const m of r.path) s = applyMove(lv, s, m).state;
+  assert.ok(s.done.every(Boolean));
+});

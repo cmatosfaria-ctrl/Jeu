@@ -8,23 +8,30 @@ import { PIPE_LEVELS } from '../pipes/levels.js';
 import { buildPipeLevel, variantDef } from '../pipes/level.js';
 import { chainLevels, permuteDosage } from '../career/contracts.js';
 import { Rng } from '../core/rng.js';
+import { REACTIONS } from '../dosage/engine.js';
 import { playPuzzle, resultModal } from './play.js';
 import { CareerScreen } from './career-view.js';
 import { HowTo } from './howto.js';
 import { play, applyVolumes } from '../audio.js';
+import { setMusicIntensity } from '../music.js';
+import { initAchievements, track as trackStats } from '../achievements.js';
+import { AchievementsScreen, notifyAchievement } from './achievements-view.js';
+import { TimeAttack } from './timeattack.js';
+import { UPGRADES, START_OWNED } from '../career/data.js';
 
 const root = typeof document !== 'undefined' ? document.getElementById('app') : null;
 let screen = null;
 
 export function show(fn, params = {}) {
   screen?.destroy?.();
+  setMusicIntensity(0.2);
   root.innerHTML = '';
   screen = fn(root, params) || null;
   root.scrollTop = 0;
 }
 
 // ---------- Pistes du grimoire ----------
-const DOSAGE_NAMES = ['Apprenti', 'Mélanges', 'Trichromie', 'Pénurie & commandes'];
+const DOSAGE_NAMES = ['Apprenti', 'Mélanges', 'Trichromie', 'Pénurie & commandes', 'Réactions alchimiques'];
 export const TRACKS = {
   dosage: {
     name: 'Dosage', icon: ICON.flask,
@@ -32,7 +39,7 @@ export const TRACKS = {
   },
   pipes: {
     name: 'Tuyaux', icon: ICON.pipe,
-    chapters: [['Apprentissage', 0, 5], ['Réseaux', 5, 10], ['Maîtrise', 10, 15]].map(([name, a, b]) => ({ name, items: PIPE_LEVELS.slice(a, b).map((d) => ({ id: d.id, name: d.name })) })),
+    chapters: [['Apprentissage', 0, 5], ['Réseaux', 5, 10], ['Maîtrise', 10, 15], ['Pression & vannes', 15, 22]].map(([name, a, b]) => ({ name, items: PIPE_LEVELS.slice(a, b).map((d) => ({ id: d.id, name: d.name })) })),
   },
   chain: {
     name: 'Chaînes', icon: ICON.chain,
@@ -43,10 +50,16 @@ export const TRACKS = {
 const flatItems = (track) => TRACKS[track].chapters.flatMap((c) => c.items);
 const isUnlocked = (track, idx) => idx === 0 || !!load().stars[flatItems(track)[idx - 1].id];
 
+const lvReact = (id) => (id.startsWith('r-') ? DOSAGE_CHAPTERS.flat().find((l) => l.id === id) : null);
+/** Bulle d'aide d'un niveau à réactions : rappel des règles actives. */
+function reactionTip(lv) {
+  return 'Réactions actives : ' + lv.reactions.map((r) => `<b>${REACTIONS[r].name}</b> (${REACTIONS[r].desc.split(' : ')[0]})`).join(', ') + '. Touche un badge pour le détail.';
+}
+
 function specFor(track, id) {
   if (track === 'dosage') {
     const lv = DOSAGE_CHAPTERS.flat().find((l) => l.id === id);
-    return { spec: { type: 'dosage', level: lv }, name: lv.name, tip: lv.tip };
+    return { spec: { type: 'dosage', level: lv }, name: lv.name, tip: lv.tip || (lv.reactions ? reactionTip(lv) : '') };
   }
   if (track === 'pipes') {
     const def = PIPE_LEVELS.find((d) => d.id === id);
@@ -63,14 +76,23 @@ export function startGrimoireLevel(track, id) {
   const { spec, name, tip } = specFor(track, id);
   const d = load();
   // Les tutoriels montrent toujours leur bulle ; les autres niveaux seulement la première fois.
-  const tutorial = /^(d[1-4]|p[1-3]|ch1)$/.test(id);
+  const tutorial = /^(d[1-4]|p[1-3]|p16|p19|ch1)$/.test(id) || !!lvReact(id);
   const showTip = tip && (tutorial || !d.seenTips[id]) ? tip : '';
   if (tip) { d.seenTips[id] = true; save(); }
   show((r) => playPuzzle(spec, {
     root: r, title: name, subtitle: `${TRACKS[track].name} · ${idx + 1}/${items.length}`, tip: showTip,
     onExit: () => show(Grimoire, { track }),
     onWin: (res) => {
+      const prev = load().stars[id] || 0;
       recordStars(id, res.stars);
+      const t = {};
+      if (!prev) {
+        Object.assign(t, { levels: 1, ['lv_' + track]: 1 });
+        if (id.startsWith('r-')) t.lv_react = 1;
+        if (!res.hintUsed) t.nohint = 1;
+      }
+      if (res.stars === 3 && prev < 3) t.perfect = 1;
+      trackStats(t);
       const next = items[idx + 1];
       resultModal({
         stars: res.stars,
@@ -119,8 +141,10 @@ export function Home(r) {
       <button class="btn ${c ? '' : 'primary'} big" data-go="newcareer">${ICON.map}<span>${c ? 'Nouvelle carrière' : 'Carrière'}<small>Gère ton atelier d'alchimiste</small></span></button>
       <button class="btn big" data-go="grimoire">${ICON.scroll}<span>Grimoire d'énigmes<small>Dosage · Tuyaux · Chaînes</small></span></button>
       <button class="btn big" data-go="daily">${ICON.calendar}<span>Défi du jour<small>${dailyLabel()}</small></span></button>
-      <div class="menu-row">
-        <button class="btn" data-go="howto">${ICON.help}<span>Comment jouer</span></button>
+      <button class="btn big" data-go="ta">${ICON.clock}<span>Contre-la-montre<small>${taLabel()}</small></span></button>
+      <div class="menu-row three">
+        <button class="btn" data-go="ach">${ICON.star}<span>Succès</span></button>
+        <button class="btn" data-go="howto">${ICON.help}<span>Aide</span></button>
         <button class="btn" data-go="settings">${ICON.gear}<span>Réglages</span></button>
       </div>
     </nav>
@@ -138,6 +162,8 @@ export function Home(r) {
     if (g === 'grimoire') show(Grimoire, { track: 'dosage' });
     if (g === 'daily') startDaily();
     if (g === 'howto') show(HowTo, { onBack: () => show(Home) });
+    if (g === 'ta') show(TimeAttack, { onHome: () => show(Home) });
+    if (g === 'ach') show(AchievementsScreen, { onBack: () => show(Home) });
     if (g === 'settings') show(Settings);
   });
   r.appendChild(v);
@@ -208,6 +234,7 @@ function startDaily() {
       const d = load();
       d.daily[key] = Math.max(d.daily[key] || 0, res.stars); save();
       const streak = dailyStreak();
+      trackStats({ dailies: 1, maxStreak: streak });
       resultModal({ stars: res.stars, lines: [res.detail, `Série : ${streak} jour${streak > 1 ? 's' : ''} d'affilée`, '<span class="muted">Reviens demain pour un nouveau défi !</span>'],
         buttons: [{ label: 'Rejouer', cls: 'ghost', onClick: startDaily }, { label: 'Accueil', cls: 'primary', onClick: () => show(Home) }] });
     },
@@ -234,6 +261,7 @@ function Settings(r) {
     <div class="scroll">
       <label class="toggle"><span>Sons</span><input type="checkbox" data-set="sound" ${d.settings.sound ? 'checked' : ''}></label>
       <label class="toggle slider"><span>Effets sonores</span><input type="range" min="0" max="100" step="5" data-vol="sfxVol" value="${Math.round((d.settings.sfxVol ?? 0.8) * 100)}"></label>
+      <label class="toggle slider"><span>Musique</span><input type="range" min="0" max="100" step="5" data-vol="musVol" value="${Math.round((d.settings.musVol ?? 0.5) * 100)}"></label>
       <label class="toggle slider"><span>Ambiance machinerie</span><input type="range" min="0" max="100" step="5" data-vol="ambVol" value="${Math.round((d.settings.ambVol ?? 0.35) * 100)}"></label>
       <label class="toggle"><span>Vibrations</span><input type="checkbox" data-set="vibrate" ${d.settings.vibrate ? 'checked' : ''}></label>
       <button class="btn danger" data-act="reset">Effacer toute la progression</button>
@@ -258,6 +286,13 @@ function Settings(r) {
   r.appendChild(v);
 }
 
+function taLabel() {
+  const r = load().taRecords?.[0];
+  return r ? `Record : ${r.score} pts` : 'Enchaîne les dosages avant la fin du chrono';
+}
+
 export function boot() {
+  const totalLevels = Object.keys(TRACKS).reduce((a, k) => a + flatItems(k).length, 0);
+  initAchievements({ totalLevels, totalUpgrades: UPGRADES.length + START_OWNED.length }, notifyAchievement);
   show(Home);
 }

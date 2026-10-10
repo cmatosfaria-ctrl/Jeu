@@ -2,7 +2,7 @@
 import { Rng } from '../core/rng.js';
 import { PIPE_LEVELS } from '../pipes/levels.js';
 import { buildPipeLevel, variantDef } from '../pipes/level.js';
-import { CAREER_DOSAGE, CHAINS } from '../data/levels-data.js';
+import { CAREER_DOSAGE, CAREER_REACT, CHAINS } from '../data/levels-data.js';
 import { TOWNS, CLIENTS } from './data.js';
 
 const LETTERS = ['R', 'Y', 'B'];
@@ -30,13 +30,17 @@ export function permuteDosage(lv, perm) {
 const PIPE_TIERS = [
   ['p1', 'p2', 'p4', 'p5', 'p6'],
   ['p3', 'p6', 'p7', 'p8', 'p9', 'p10'],
-  ['p8', 'p9', 'p10', 'p11', 'p12', 'p13'],
-  ['p11', 'p12', 'p13', 'p14', 'p15'],
+  ['p8', 'p9', 'p10', 'p11', 'p12', 'p13', 'p16', 'p17', 'p19', 'p20'],
+  ['p11', 'p12', 'p13', 'p14', 'p15', 'p18', 'p21', 'p22'],
 ];
 const CHAIN_TIERS = [[], [], [0, 1, 2, 3, 4, 5], [4, 5, 6, 7, 8, 9, 10, 11]];
 
 /** Construit l'énigme décrite par un contrat. */
 export function buildPuzzle(c) {
+  if (c.type === 'dosage' && c.react) {
+    // Pas de permutation de couleurs : les réactions dépendent des pigments réels.
+    return { type: 'dosage', level: CAREER_REACT[c.ref] };
+  }
   if (c.type === 'dosage') {
     const base = CAREER_DOSAGE[c.tier - 1][c.ref];
     return { type: 'dosage', level: permuteDosage(base, c.perm) };
@@ -53,10 +57,15 @@ export function buildPuzzle(c) {
 export function requirementsOf(c) {
   const req = new Set();
   const colorReq = (comp) => { if (comp[2] > 0) req.add('B'); if (comp[3] > 0) req.add('W'); };
-  const dosageReq = (lv) => { lv.sources.forEach((s) => colorReq(s.comp)); if (lv.caps.length >= 3) req.add('flask3'); };
+  const dosageReq = (lv) => {
+    lv.sources.forEach((s) => colorReq(s.comp));
+    if (lv.caps.length >= 3) req.add('flask3');
+    if (lv.reactions?.length) req.add('gloves');
+  };
   const pipeReq = (pl) => {
     pl.cells.forEach((cell) => { if (cell && cell.kind === 'src') colorReq(cell.color); });
     for (const k of ['S', 'X', 'M']) if (pl.inventory[k] > 0) req.add(k);
+    if (pl.pressure || pl.valves?.length || pl.inventory.H || pl.inventory.J) req.add('boiler');
   };
   const p = buildPuzzle(c);
   if (p.type === 'dosage') dosageReq(p.level);
@@ -107,15 +116,17 @@ export function generateBoard(seed, day, unlockedTowns, owned) {
 
 function makeContract(rng, { day, i, town, tier, type }) {
   let ref;
-  if (type === 'dosage') ref = rng.int(0, CAREER_DOSAGE[tier - 1].length - 1);
+  const react = type === 'dosage' && tier >= 3 && rng.chance(0.35);
+  if (react) ref = rng.int(0, CAREER_REACT.length - 1);
+  else if (type === 'dosage') ref = rng.int(0, CAREER_DOSAGE[tier - 1].length - 1);
   else if (type === 'pipes') ref = rng.pick(PIPE_TIERS[tier - 1]);
   else ref = rng.pick(CHAIN_TIERS[tier - 1]);
   const perm = rng.pick(PERMS);
   const c = {
     id: `${day}-${i}`,
-    type, tier, town: town.id, ref, perm, mirror: type === 'pipes' && rng.chance(0.5),
+    type, tier, town: town.id, ref, perm: react ? null : perm, mirror: type === 'pipes' && rng.chance(0.5), react,
     client: rng.pick(CLIENTS[type]),
-    reward: REWARD[type][tier - 1] + rng.int(0, 6),
+    reward: REWARD[type][tier - 1] + rng.int(0, 6) + (react ? 12 : 0),
     rep: REP[tier - 1] + (type === 'chain' ? 3 : 0),
     deadline: rng.int(2, 5),
   };

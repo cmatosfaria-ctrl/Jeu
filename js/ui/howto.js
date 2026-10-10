@@ -26,6 +26,22 @@ export function HowTo(r, { onBack }) {
       <section><h3>${ICON.chain} Les Chaînes de production</h3>
         <p>D'abord un réseau de tuyaux : ses cuves produisent des mélanges. Ces mélanges deviennent ensuite les <b>sources</b> d'un dosage final.</p>
       </section>
+      <section><h3>🧪 Réactions alchimiques</h3>
+        <p>Dans certains niveaux (badges en haut de l'écran), des pigments réagissent quand ils se <b>rencontrent pour la première fois</b> dans une fiole :</p>
+        <ul>
+          <li>🫧 <b>Mousse</b> — Jaune + Blanc : le volume double (le surplus déborde).</li>
+          <li>♨ <b>Évaporation</b> — Rouge + Blanc : la moitié du liquide s'envole.</li>
+          <li>❄ <b>Cristallisation</b> — Bleu + Blanc : le mélange se fige, on ne peut plus y verser ni en verser (mais on peut le livrer).</li>
+          <li>💥 <b>Explosion</b> — Rouge + Jaune + Bleu : la fiole se vide d'un coup.</li>
+        </ul>
+      </section>
+      <section><h3>${ICON.pipe} Pression & vannes</h3>
+        <p>Touche une <b>vanne</b> pour l'ouvrir (anneau cyan) ou la fermer (anneau rouge). Si une sortie de séparateur est fermée, <b>tout</b> le flux part dans l'autre ; un mélangeur dont une entrée est coupée laisse passer l'autre flux seul.</p>
+        <p>Dans les niveaux <b>sous pression</b>, un tuyau ordinaire supporte un débit de 1 : au-delà il cède. Les tuyaux <b>renforcés</b> (laiton cerclé), les vannes et les moyeux supportent 2.</p>
+      </section>
+      <section><h3>${ICON.clock} Contre-la-montre</h3>
+        <p>2 minutes au départ. Chaque dosage réussi rapporte des points et des secondes ; résoudre à l'optimum fait grimper le <b>combo</b>. Passer une énigme coûte 10 secondes.</p>
+      </section>
       <section><h3>${ICON.shop} La Carrière</h3>
         <p>Tu as ${30} jours pour faire de ton atelier le plus réputé du royaume.</p>
         <ul>

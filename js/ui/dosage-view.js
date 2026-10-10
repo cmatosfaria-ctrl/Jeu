@@ -3,10 +3,12 @@ import { el, toast } from './dom.js';
 import { ICON } from './icons.js';
 import { chips, swatch, fmtGold } from './widgets.js';
 import { mixColor, mixName, toRatio } from '../core/color.js';
-import { initialState, applyMove, checkMove, isWon, starsFor, sourceFracs, moveCost } from '../dosage/engine.js';
+import { initialState, applyMove, checkMove, isWon, starsFor, sourceFracs, moveCost, REACTIONS } from '../dosage/engine.js';
 import { solve } from '../dosage/solver.js';
 import { play, buzz } from '../audio.js';
 import { burst, ring, celebrate, centerIn } from './fx.js';
+import { setMusicIntensity, musicStinger } from '../music.js';
+import { track } from '../achievements.js';
 import { doseCost } from '../career/career.js';
 
 /**
@@ -40,6 +42,7 @@ export function DosageView(root, opts) {
   </div>`);
   root.appendChild(view);
   const $ = (q) => view.querySelector(q);
+  if (opts.noHint) view.querySelector('[data-act="hint"]').remove();
 
   // ----- Construction -----
   const ordersEl = $('.orders');
@@ -50,6 +53,11 @@ export function DosageView(root, opts) {
       <span class="order-done">${ICON.check}</span>
     </button>`));
   });
+
+  if (lv.reactions?.length) {
+    ordersEl.after(el(`<section class="reaction-badges" aria-label="Réactions actives">${lv.reactions.map((r) =>
+      `<button class="rb ${r}" data-react="${r}">${{ boom: '💥', cristal: '❄', mousse: '🫧', evap: '♨' }[r]} ${REACTIONS[r].name}</button>`).join('')}</section>`));
+  }
 
   const bench = $('.bench');
   const unitPx = () => {
@@ -94,8 +102,8 @@ export function DosageView(root, opts) {
   }
 
   // ----- Mise à jour de l'affichage -----
-  function update() {
-    const s = cur().state;
+  function update(override) {
+    const s = override || cur().state;
     s.flasks.forEach((f, i) => {
       const fe = view.querySelector(`[data-flask="${i}"]`);
       const liq = fe.querySelector('.liquid');
@@ -105,6 +113,7 @@ export function DosageView(root, opts) {
       fe.querySelector('.fchips').innerHTML = f.vol ? chips(toRatio(f.amt), { compact: true }) : '';
       fe.classList.toggle('selected', sel?.k === 'flask' && sel.i === i);
       fe.classList.toggle('full', f.vol === f.cap);
+      fe.classList.toggle('solid', !!f.solid);
     });
     lv.sources.forEach((src, i) => {
       const se = view.querySelector(`[data-source="${i}"]`);
@@ -121,6 +130,7 @@ export function DosageView(root, opts) {
     $('[data-act="undo"]').disabled = history.length < 2 || finished;
     const hb = $('[data-act="hint"] .badge');
     if (opts.hints) { hb.hidden = false; hb.textContent = opts.hints.get(); }
+    if (!override && !finished) setMusicIntensity(0.3 + 0.55 * (s.done.filter(Boolean).length / s.done.length));
   }
 
   // ----- Animations -----
@@ -193,17 +203,21 @@ export function DosageView(root, opts) {
       return;
     }
     const before = s;
-    const { state, drawn } = applyMove(lv, s, m, srcFracs);
-    // Y a-t-il réaction ? (la fiole cible contenait déjà un liquide de proportions différentes)
+    const { state, drawn, reactions: fired = [] } = applyMove(lv, s, m, srcFracs);
+    // Avec réaction alchimique : on montre d'abord le mélange « normal », puis la réaction le transforme.
+    const pre = fired.length ? applyMove({ ...lv, reactions: undefined }, s, m, srcFracs).state : state;
+    // Y a-t-il mélange de couleurs ? (la fiole cible contenait déjà un liquide de proportions différentes)
     const target = m.t === 'pour' ? m.b : m.t === 'fill' ? m.f : null;
     let reaction = null;
     if (target != null && before.flasks[target].vol > 0) {
-      const oldC = mixColor(before.flasks[target].amt), newC = mixColor(state.flasks[target].amt);
-      if (toRatio(before.flasks[target].amt).join() !== toRatio(state.flasks[target].amt).join()) reaction = { i: target, oldC, newC };
+      const oldC = mixColor(before.flasks[target].amt), newC = mixColor(pre.flasks[target].amt);
+      if (toRatio(before.flasks[target].amt).join() !== toRatio(pre.flasks[target].amt).join()) reaction = { i: target, oldC, newC };
     }
     let cost = 0;
     if (m.t === 'fill' && opts.prices) cost = doseCost(opts.prices, lv.sources[m.s].comp, drawn);
     history.push({ state, move: m, cost });
+    if (m.t === 'fill' || m.t === 'pour') track({ pours: 1 });
+    if (fired.length) track(Object.fromEntries(fired.map((r) => ['r_' + r.type, 1])));
     sel = null;
     busy = true;
     let delay = 0;
@@ -213,13 +227,13 @@ export function DosageView(root, opts) {
       setTimeout(() => stream(fa, fb, mixColor(before.flasks[m.a].amt), 420), 260);
       play('pour'); delay = 820;
       if (reaction) { react(reaction.i, reaction.oldC, reaction.newC, 420); delay = 1500; }
-      setTimeout(update, 300);
+      setTimeout(() => update(pre), 300);
     } else if (m.t === 'fill') {
       const se = view.querySelector(`[data-source="${m.s}"]`), fe = view.querySelector(`[data-flask="${m.f}"]`);
       stream(se, fe, mixColor(lv.sources[m.s].comp), 480);
       play('fill'); delay = 420;
       if (reaction) { react(reaction.i, reaction.oldC, reaction.newC, 250); delay = 1300; }
-      setTimeout(update, 120);
+      setTimeout(() => update(pre), 120);
     } else if (m.t === 'empty') {
       play('empty'); update(); delay = 250;
     } else if (m.t === 'deliver') {
@@ -234,10 +248,47 @@ export function DosageView(root, opts) {
       }, 350);
       setTimeout(update, 150);
     }
+    if (fired.length) {
+      const at = reaction ? delay - 200 : delay;
+      setTimeout(() => alchemy(fired.map((r) => r.type), target), at);
+      delay = at + 1000;
+    }
     setTimeout(() => {
       busy = false;
       if (isWon(state) && !finished) win();
     }, delay);
+  }
+
+  // ----- Réactions alchimiques spéciales -----
+  function alchemy(types, i) {
+    const fe = view.querySelector(`[data-flask="${i}"]`);
+    const glass = fe.querySelector('.glass');
+    const layer = $('.layer');
+    const top = centerIn(fe.querySelector('.liquid'), view, 0.05);
+    const mid = centerIn(glass, view, 0.6);
+    for (const t of types) {
+      play(t);
+      if (t === 'boom') {
+        buzz([60, 40, 120]);
+        view.classList.add('shake'); setTimeout(() => view.classList.remove('shake'), 500);
+        ring(layer, mid.x, mid.y, '#ff6b3d', 220);
+        ring(layer, mid.x, mid.y, '#ffffff', 140, 80);
+        burst(layer, mid.x, mid.y, { n: 34, colors: ['#ff6b3d', '#ffb52e', '#ff2fd2', '#ffffff'], spread: 170, size: 7, dur: 1000 });
+        burst(layer, mid.x, mid.y, { n: 10, colors: ['#ffffff66'], spread: 90, rise: 120, size: 26, dur: 1600, kind: 'steam', delay: 100 });
+      } else if (t === 'cristal') {
+        buzz([10, 30, 10, 30, 10]);
+        ring(layer, mid.x, mid.y, '#bff8ff', 130);
+        burst(layer, mid.x, mid.y, { n: 22, colors: ['#bff8ff', '#ffffff', '#26f2ff'], spread: 80, size: 5, dur: 1100 });
+      } else if (t === 'mousse') {
+        burst(layer, top.x, top.y, { n: 26, colors: ['#ffffff', '#fff59a'], spread: top.w * 1.6, rise: 130, size: 9, dur: 1300, kind: 'bubble' });
+      } else if (t === 'evap') {
+        burst(layer, top.x, top.y, { n: 14, colors: ['#ffffff77'], spread: 70, rise: 170, size: 24, dur: 1700, kind: 'steam' });
+        burst(layer, top.x, top.y, { n: 10, colors: ['#ff9ec7', '#ffffff'], spread: 50, size: 4, dur: 900 });
+      }
+    }
+    const msg = { boom: '💥 Explosion ! La fiole est vide.', cristal: '❄ Cristallisation : ce mélange ne coule plus.', mousse: '🫧 Mousse : le volume double !', evap: '♨ Évaporation : la moitié s\'envole.' };
+    toast(types.map((t) => msg[t]).join(' '), types.includes('boom') ? 'warn' : '');
+    setTimeout(update, types.includes('boom') ? 120 : 250);
   }
 
   function win() {
@@ -246,7 +297,7 @@ export function DosageView(root, opts) {
     const moves = movesCount();
     const stars = starsFor(moves, lv.par, hintUsed);
     const cost = history.reduce((a, h) => a + h.cost, 0);
-    play('win'); buzz([30, 60, 30]);
+    play('win'); buzz([30, 60, 30]); musicStinger();
     view.classList.add('won');
     const pts = [...view.querySelectorAll('.order')].map((o) => centerIn(o, view));
     celebrate($('.layer'), pts, lv.orders.map((o) => mixColor(o.ratio)).concat(['#26f2ff', '#ff2fd2', '#f0cf7e']));
@@ -255,6 +306,8 @@ export function DosageView(root, opts) {
 
   function onTap(e) {
     if (busy || finished) return;
+    const rb = e.target.closest('[data-react]');
+    if (rb) { toast(REACTIONS[rb.dataset.react].desc); return; }
     const t = e.target.closest('[data-flask],[data-source],[data-sink],[data-order],[data-act]');
     if (!t) { if (sel) { sel = null; update(); } return; }
     clearHint();
@@ -305,7 +358,7 @@ export function DosageView(root, opts) {
     const finish = (m) => {
       if (!m) { toast('Le grimoire reste muet… Recommence pour obtenir un indice.', 'warn'); return; }
       if (opts.hints) opts.hints.use();
-      hintUsed = true; showHint(m); update();
+      hintUsed = true; track({ hints: 1 }); showHint(m); update();
     };
     if (next) return finish(next);
     toast('Le grimoire réfléchit…');

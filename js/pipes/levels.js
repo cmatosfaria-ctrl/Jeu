@@ -177,4 +177,86 @@ export const PIPE_LEVELS = [
       '.. .. T^ T^ T^ .. ..',
     ],
   },
+  // ---------- Pression & vannes ----------
+  {
+    id: 'p16', name: 'Surpression', tutorial: true, pressure: true, extra: { I: 2 },
+    tip: 'Sous pression ! Un mélangeur additionne deux flux : le débit vaut 2. Un tuyau ordinaire supporte 1, un tuyau renforcé (laiton) supporte 2.',
+    map: [
+      'Rv .. .. .. Yv',
+      'I0 .. .. .. I0',
+      'L0 I1 M2 I1 L3',
+      '.. .. H0 .. ..',
+      '.. .. H0 .. ..',
+      '.. .. T^ .. ..',
+    ],
+  },
+  {
+    id: 'p17', name: 'Détente', pressure: true, extra: { H: 1 },
+    tip: 'Un séparateur divise aussi la pression.',
+    map: [
+      'Rv .. .. .. Yv',
+      'I0 .. .. .. I0',
+      'L0 I1 M2 I1 L3',
+      '.. L1 S2 L2 ..',
+      '.. I0 .. I0 ..',
+      '.. T^ .. T^ ..',
+    ],
+  },
+  {
+    id: 'p18', name: 'Coude de laiton', pressure: true, extra: { I: 1, L: 1 },
+    tip: 'Le coude renforcé tient lui aussi la haute pression.',
+    map: [
+      'Bv .. Wv ..',
+      'I0 .. I0 ..',
+      'L0 M2 L3 ..',
+      '.. H0 .. ..',
+      '.. J0 H1 T<',
+    ],
+  },
+  {
+    id: 'p19', name: 'Première vanne', tutorial: true,
+    tip: 'Touche une vanne pour l\'ouvrir ou la fermer. Quand une sortie de séparateur est fermée, tout le flux part dans l\'autre.',
+    map: [
+      '.. .. Rv .. ..',
+      'D* C1 s2 l2 ..',
+      '.. .. l1 m3 ..',
+      '.. .. i0 i0 ..',
+      '.. .. T^ Y^ ..',
+    ],
+  },
+  {
+    id: 'p20', name: 'Aiguillage',
+    tip: 'Un mélangeur dont une entrée est coupée par une vanne laisse passer l\'autre flux seul.',
+    map: [
+      '.. .. .. Rv .. .. ..',
+      '.. .. .. i0 .. .. ..',
+      'Y> m2 O1 s2 C1 m2 B<',
+      '.. i0 .. .. .. i0 ..',
+      '.. T^ .. .. .. T^ ..',
+    ],
+  },
+  {
+    id: 'p21', name: 'Équilibre des pressions', pressure: true, extra: { I: 1, L: 1 },
+    tip: 'Fermer une vanne double le débit de l\'autre branche…',
+    map: [
+      'Rv .. Yv .. .. ..',
+      'L0 M2 L3 .. .. ..',
+      'J1 s2 C1 l2 .. ..',
+      'H0 .. l1 m3 .. ..',
+      'T^ .. i0 i0 .. ..',
+      '.. .. T^ B^ .. ..',
+    ],
+  },
+  {
+    id: 'p22', name: 'Salle des vannes',
+    tip: 'Quatre vannes, trois commandes. Quelle combinaison ?',
+    map: [
+      '.. Rv .. Yv .. Bv ..',
+      'l1 s2 m2 s2 m2 s2 l2',
+      'C0 .. O0 .. O0 .. O0',
+      'l0 i1 x0 m2 x0 i1 l3',
+      '.. .. i0 i0 i0 .. ..',
+      '.. .. T^ T^ T^ .. ..',
+    ],
+  },
 ];

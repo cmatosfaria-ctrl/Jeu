@@ -33,6 +33,8 @@ export const UPGRADES = [
   { id: 'S', name: 'Licence Séparateur', cost: 50, icon: 'splitter', desc: 'Autorise les réseaux avec séparateur.' },
   { id: 'W', name: 'Pigment Blanc', cost: 60, icon: 'drop-w', desc: 'Débloque les teintes pastel.' },
   { id: 'X', name: 'Licence Croisement', cost: 45, icon: 'cross', desc: 'Autorise les réseaux avec croisement.' },
+  { id: 'boiler', name: 'Chaudronnerie', cost: 65, icon: 'valve', desc: 'Tuyaux renforcés, vannes et réseaux sous pression.' },
+  { id: 'gloves', name: 'Gants d\'alchimiste', cost: 55, icon: 'glove', desc: 'Contrats « laboratoire instable » : réactions alchimiques.' },
   { id: 'alembic', name: 'Grand alambic', cost: 110, icon: 'alembic', desc: 'Débloque les chaînes de production (tuyaux puis dosage).' },
   { id: 'slot1', name: 'Grand carnet', cost: 70, icon: 'book', desc: '+1 contrat simultané dans le carnet.' },
   { id: 'reservoir', name: 'Réservoir', cost: 80, icon: 'barrel', desc: 'Pigments et pièces 25 % moins chers.' },

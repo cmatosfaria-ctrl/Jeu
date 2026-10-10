@@ -7,11 +7,23 @@ const rot = (d, r) => (d + r) % 4;
 export const PIECES = {
   I: { name: 'Droit', rotations: 2, pairs: [[0, 2]] },
   L: { name: 'Coude', rotations: 4, pairs: [[0, 1]] },
+  H: { name: 'Renforcé', rotations: 2, pairs: [[0, 2]], strong: true },
+  J: { name: 'Coude renf.', rotations: 4, pairs: [[0, 1]], strong: true },
   X: { name: 'Croisement', rotations: 1, pairs: [[0, 2], [1, 3]] },
   S: { name: 'Séparateur', rotations: 4, ins: [2], outs: [3, 1] },
   M: { name: 'Mélangeur', rotations: 4, ins: [3, 1], outs: [0] },
 };
-export const PIECE_ORDER = ['I', 'L', 'X', 'S', 'M'];
+export const PIECE_ORDER = ['I', 'L', 'H', 'J', 'X', 'S', 'M'];
+
+/** Débit maximal supporté (niveaux sous pression). Les moyeux et les vannes sont en fonte : 2. */
+export function capacity(c) {
+  if (c.kind === 'valve') return 2;
+  if (c.kind !== 'pipe') return Infinity;
+  return PIECES[c.type].strong || c.type === 'S' || c.type === 'M' ? 2 : 1;
+}
+
+/** Une vanne laisse passer selon son axe : 0 = vertical (N-S), 1 = horizontal (E-O). */
+export const onValveAxis = (c, side) => side % 2 === c.axis;
 
 /** Côtés ouverts d'une pièce posée (pour le dessin). */
 export function openSides(type, r) {

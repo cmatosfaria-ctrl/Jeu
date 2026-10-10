@@ -10,13 +10,15 @@ const SAMPLES = {
   steam: 'sounds/steam.ogg', ambient: 'sounds/ambient.ogg',
 };
 
-let ctx = null, master = null, sfxBus = null, ambBus = null, reverbSend = null;
+let ctx = null, master = null, sfxBus = null, ambBus = null, musBus = null, reverbSend = null;
 const buffers = {};
+let musicVerb = null;
 let loading = null, ambientSrc = null;
 
 const settings = () => load().settings;
 const sfxVolume = () => (settings().sound ? (settings().sfxVol ?? 0.8) : 0);
 const ambVolume = () => (settings().sound ? (settings().ambVol ?? 0.35) : 0);
+export const musVolume = () => (settings().sound ? (settings().musVol ?? 0.5) : 0);
 
 function ac() {
   if (!ctx) {
@@ -30,10 +32,12 @@ function ac() {
     comp.connect(master).connect(ctx.destination);
     sfxBus = ctx.createGain(); sfxBus.gain.value = sfxVolume(); sfxBus.connect(comp);
     ambBus = ctx.createGain(); ambBus.gain.value = 0; ambBus.connect(comp);
+    musBus = ctx.createGain(); musBus.gain.value = musVolume() * 0.6; musBus.connect(comp);
     const verb = ctx.createConvolver(); verb.buffer = impulse(ctx, 1.6, 2.8);
     reverbSend = ctx.createGain(); reverbSend.gain.value = 0.22;
     const verbOut = ctx.createGain(); verbOut.gain.value = 0.7;
     reverbSend.connect(verb).connect(verbOut).connect(comp);
+    musicVerb = reverbSend;
     document.addEventListener('visibilitychange', () => {
       if (!ctx) return;
       if (document.hidden) ctx.suspend(); else ctx.resume();
@@ -191,6 +195,12 @@ const RECIPES = {
   coin: () => sample('bell', { vol: 0.4, rate: 1.25, verb: 0.8 }),
   win: () => { sample('win', { vol: 0.8 }); sample('forcefield', { vol: 0.45, delay: 0.1, verb: 1 }); sample('steam', { vol: 0.35, delay: 0.25, verb: 1 }); },
   flow: () => sample(pick('flow', 3), { vol: 0.7, verb: 0.7 }),
+  valve: () => { sample('ratchet', { vol: 0.7, rate: 0.8 }); sample('clank-2', { vol: 0.4, rate: 0.7, delay: 0.08 }); },
+  burst: () => { sample('steam', { vol: 0.9, rate: 1.2, verb: 0.8 }); sample('clank-3', { vol: 0.7, rate: 0.6 }); sample('glitch', { vol: 0.3 }); },
+  boom: () => { sample('thud', { vol: 1, rate: 0.5, verb: 1 }); sample('forcefield', { vol: 0.6, rate: 0.6, verb: 1 }); sample('steam', { vol: 0.8, delay: 0.1, verb: 1 }); sample('clank-1', { vol: 0.6, rate: 1.4, delay: 0.05 }); },
+  cristal: () => { sample('tap-glass', { vol: 0.6, rate: 1.6 }); sample('tap-glass', { vol: 0.5, rate: 2, delay: 0.12 }); sample('tap-glass', { vol: 0.4, rate: 2.4, delay: 0.24 }); sample('forcefield', { vol: 0.3, rate: 1.8, verb: 1 }); },
+  mousse: () => { sample(pick('fizz', 3), { vol: 1, rate: 0.8, verb: 0.6 }); sample(pick('pour', 3), { vol: 0.6, rate: 1.3 }); },
+  evap: () => { sample('steam', { vol: 0.9, rate: 0.85, verb: 1 }); sample(pick('fizz', 3), { vol: 0.5, rate: 1.3 }); },
   react: () => { sample(pick('fizz', 3), { vol: 1, verb: 0.6 }); sample('forcefield', { vol: 0.35, rate: 1.2, verb: 0.9 }); sample('steam', { vol: 0.25, delay: 0.45 }); },
 };
 
@@ -206,15 +216,25 @@ export function play(name) {
 /** Applique les volumes après un changement de réglage. */
 export function applyVolumes() {
   if (!ctx) return;
+  musBus.gain.setTargetAtTime(musVolume() * 0.6, ctx.currentTime, 0.2);
+  musicListeners.forEach((f) => f());
   sfxBus.gain.setTargetAtTime(sfxVolume(), ctx.currentTime, 0.05);
   ambBus.gain.setTargetAtTime(ambVolume() * 0.5, ctx.currentTime, 0.3);
 }
+
+const musicListeners = [];
+/** Accès au graphe audio pour la musique : { ctx, bus, verb, buffers }. */
+export function musicGraph() {
+  const c = ac();
+  return c ? { ctx: c, bus: musBus, verb: musicVerb, buffers } : null;
+}
+export function onVolumeChange(f) { musicListeners.push(f); }
 
 /** Déverrouille l'audio au premier geste (exigence des navigateurs mobiles) et lance l'ambiance. */
 export function unlockOnFirstGesture() {
   const go = () => {
     window.removeEventListener('pointerdown', go, true);
-    if (settings().sound) { ac(); loadAll(); }
+    if (settings().sound) { ac(); loadAll(); musicListeners.forEach((f) => f()); }
   };
   window.addEventListener('pointerdown', go, true);
 }

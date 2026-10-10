@@ -1,20 +1,20 @@
 // Service worker : met tout le jeu en cache pour jouer hors-ligne.
 // Pensez à incrémenter VERSION à chaque mise à jour du jeu.
-const VERSION = 'alchimie-v4';
+const VERSION = 'alchimie-v5';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'fonts/orbitron.woff2', 'fonts/rajdhani-500.woff2', 'fonts/rajdhani-700.woff2', 'fonts/sharetechmono.woff2',
   'sounds/tap-glass.ogg', 'sounds/tap-metal.ogg', 'sounds/ui.ogg', 'sounds/clank-1.ogg', 'sounds/clank-2.ogg', 'sounds/clank-3.ogg', 'sounds/ratchet.ogg', 'sounds/thud.ogg',
   'sounds/error.ogg', 'sounds/glitch.ogg', 'sounds/deliver.ogg', 'sounds/win.ogg', 'sounds/bell.ogg', 'sounds/forcefield.ogg', 'sounds/steam.ogg', 'sounds/ambient.ogg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
-  'js/main.js', 'js/storage.js', 'js/audio.js',
+  'js/main.js', 'js/storage.js', 'js/audio.js', 'js/music.js', 'js/achievements.js',
   'js/core/fraction.js', 'js/core/color.js', 'js/core/rng.js',
   'js/dosage/engine.js', 'js/dosage/solver.js', 'js/dosage/generator.js',
   'js/pipes/pieces.js', 'js/pipes/sim.js', 'js/pipes/level.js', 'js/pipes/levels.js',
   'js/chain/chain.js', 'js/data/levels-data.js',
   'js/career/data.js', 'js/career/career.js', 'js/career/contracts.js',
   'js/ui/app.js', 'js/ui/dom.js', 'js/ui/icons.js', 'js/ui/widgets.js', 'js/ui/play.js',
-  'js/ui/fx.js', 'js/ui/dosage-view.js', 'js/ui/pipes-view.js', 'js/ui/career-view.js', 'js/ui/howto.js',
+  'js/ui/fx.js', 'js/ui/timeattack.js', 'js/ui/achievements-view.js', 'js/ui/dosage-view.js', 'js/ui/pipes-view.js', 'js/ui/career-view.js', 'js/ui/howto.js',
 ];
 
 self.addEventListener('install', (e) => {

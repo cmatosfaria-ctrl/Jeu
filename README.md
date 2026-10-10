@@ -13,8 +13,14 @@ et tu gères ton commerce pour devenir **Grand Alchimiste** du royaume.
 | **Tuyauterie** | Grille où l'on pose des tuyaux, coudes, croisements, **séparateurs** (coupent un flux en deux moitiés) et **mélangeurs**. Chaque cuve doit recevoir la bonne proportion, sans aucune fuite (le surplus part à l'évier). |
 | **Chaîne de production** | Hybride : un réseau de tuyaux fabrique des mélanges qui deviennent les sources d'un dosage final. |
 | **Carrière** | 30 jours pour faire prospérer l'atelier : contrats de 4 villes (échéances, carnet limité), or et réputation, marché des pigments qui fluctue, améliorations à acheter (pigments, licences de pièces, 3ᵉ fiole, grand alambic…). Chaque contrat est une énigme des modes ci-dessus. |
-| **Grimoire d'énigmes** | 40 niveaux de dosage, 15 de tuyauterie, 12 chaînes, avec tutoriels. |
+| **Réactions alchimiques** | Mousse (volume ×2), évaporation (÷2), cristallisation (mélange figé), explosion (fiole vidée) : des règles qui se déclenchent quand certains pigments se rencontrent. |
+| **Pression & vannes** | Vannes à manœuvrer (un séparateur dont une sortie est fermée envoie tout dans l'autre), tuyaux qui cèdent au-delà d'un débit de 1, tuyaux renforcés en laiton. |
+| **Grimoire d'énigmes** | 50 niveaux de dosage (dont 10 à réactions), 22 de tuyauterie, 12 chaînes, avec tutoriels. |
+| **Contre-la-montre** | Dosages enchaînés contre le chrono, temps bonus, combos, records. |
 | **Défi du jour** | Une nouvelle énigme chaque jour, avec série de jours consécutifs. |
+| **Succès** | 44 succès à débloquer dans tous les modes. |
+
+Ambiance : animations des liquides (écoulement dans les tuyaux, réactions de mélange), bruitages, et **musique adaptative** générée en direct dont les couches s'ajoutent à mesure qu'on approche de la solution.
 
 ## Installer le jeu sur Android
 

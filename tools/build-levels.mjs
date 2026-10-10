@@ -13,7 +13,7 @@ const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`,
 function finalize(id, name, lv, extra = {}) {
   const res = solve(lv, initialState(lv), { maxNodes: 400000 });
   if (!res) throw new Error(`Niveau ${id} insoluble`);
-  return { id, name, caps: lv.caps, sources: lv.sources, orders: lv.orders, par: res.cost, solution: res.path, ...extra };
+  return { id, name, caps: lv.caps, sources: lv.sources, orders: lv.orders, ...(lv.reactions ? { reactions: lv.reactions } : {}), par: res.cost, solution: res.path, ...extra };
 }
 
 const NAMES = [
@@ -61,6 +61,35 @@ function genSeries(prefix, count, cfgFn, nameOffset, seedBase) {
   return out;
 }
 
+// ---------- Chapitre « Réactions » ----------
+const REACT_NAMES = ['Écume', 'Bain moussant', 'Vapeur rouge', 'Alambic brûlant', 'Givre bleu', 'Cristal de lune',
+  'Poudre noire', 'Main sûre', 'Laboratoire instable', 'Grand chaos'];
+const REACT_CHAPTER = [
+  { r: ['mousse'], src: 'YW', caps: [[6, 2], [8, 3], [6, 3, 2]], par: [3, 7] },
+  { r: ['mousse'], src: 'RYW', caps: [[6, 3, 2], [8, 3], [7, 4]], par: [4, 8] },
+  { r: ['evap'], src: 'RW', caps: [[5, 3], [6, 4], [7, 3]], par: [3, 7] },
+  { r: ['evap', 'mousse'], src: 'RYW', caps: [[6, 3, 2], [7, 4], [5, 4, 2]], par: [4, 9] },
+  { r: ['cristal'], src: 'BWY', caps: [[5, 3], [5, 3, 2], [6, 4]], par: [3, 8] },
+  { r: ['cristal', 'mousse'], src: 'BWY', caps: [[6, 3, 2], [5, 4, 2]], par: [4, 9] },
+  { r: ['boom'], src: 'RYB', caps: [[5, 3, 2], [4, 3, 2]], par: [4, 9] },
+  { r: ['boom', 'evap'], src: 'RYBW', caps: [[5, 3, 2], [6, 4, 2]], par: [4, 9] },
+  { r: ['boom', 'cristal', 'mousse'], src: 'RYBW', caps: [[6, 3, 2], [5, 4, 2]], par: [5, 10] },
+  { r: ['boom', 'cristal', 'mousse', 'evap'], src: 'RYBW', caps: [[6, 4, 2], [5, 3, 2]], par: [5, 10] },
+];
+function genReact(prefix, defs, seedBase, names) {
+  return defs.map((d, i) => {
+    let lv = null, seed = 0;
+    while (!lv) {
+      lv = generateDosage({ seed: `${seedBase}-${i}-${seed++}`, sources: src(d.src), capsChoices: d.caps, par: d.par, minColors: 2, maxPart: 5, tries: 6, maxNodes: 60000, reactions: d.r });
+      if (!lv && seed > 300) throw new Error('Réactions impossible ' + i);
+    }
+    const out = finalize(`${prefix}${i + 1}`, names[i % names.length], lv);
+    log(out.id, d.r.join('+'), 'opt', out.par, JSON.stringify(lv.orders.map((o) => o.vol + '×' + o.ratio.join(':'))));
+    return out;
+  });
+}
+const reactChapter = genReact('r-', REACT_CHAPTER, 'reactions', REACT_NAMES);
+
 const dosageChapters = [];
 let nameOff = 0;
 for (const ch of CHAPTERS) {
@@ -69,6 +98,7 @@ for (const ch of CHAPTERS) {
   dosageChapters.push(lv);
 }
 dosageChapters[0] = [...tutorials, ...dosageChapters[0]];
+dosageChapters.push(reactChapter);
 
 // ---------- Chaînes ----------
 const CHAIN_BASES = [
@@ -103,10 +133,13 @@ const TIERS = [
   { n: 10, cfg: (i) => ({ sources: src(['RYB', 'RB', 'RYBW', 'RY'][i % 4]), capsChoices: [[5, 3, 2], [4, 3, 2], [6, 4]], par: [7, 12], minColors: 2, maxPart: 5, orders: i % 2 ? 2 : 1, stockRange: i % 3 === 0 ? [5, 9] : null }) },
 ];
 const pool = TIERS.map((t, ti) => genSeries(`k${ti + 1}-`, t.n, t.cfg, ti * 7, 'career-' + ti));
+// Contrats « laboratoire instable » (niveaux 3-4) : dosages avec réactions
+const careerReact = genReact('kr-', [2, 3, 4, 5, 7, 8, 1, 9].map((i) => REACT_CHAPTER[i]), 'career-react', REACT_NAMES);
 
 const banner = '// Fichier généré par tools/build-levels.mjs — ne pas modifier à la main.\n';
 writeFileSync(new URL('../js/data/levels-data.js', import.meta.url), banner
   + `export const DOSAGE_CHAPTERS = ${JSON.stringify(dosageChapters)};\n`
   + `export const CHAINS = ${JSON.stringify(chains)};\n`
-  + `export const CAREER_DOSAGE = ${JSON.stringify(pool)};\n`);
+  + `export const CAREER_DOSAGE = ${JSON.stringify(pool)};\n`
+  + `export const CAREER_REACT = ${JSON.stringify(careerReact)};\n`);
 log('Terminé.');

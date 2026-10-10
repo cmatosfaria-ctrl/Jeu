@@ -13,13 +13,15 @@ import { PRIMARY_INFO, PRIMARIES } from '../core/color.js';
 import { playPuzzle, resultModal } from './play.js';
 import { show } from './app.js';
 import { play } from '../audio.js';
+import { track } from '../achievements.js';
+import { setMusicIntensity } from '../music.js';
 
 const TYPE_INFO = {
   dosage: { name: 'Dosage', icon: ICON.flask },
   pipes: { name: 'Tuyauterie', icon: ICON.pipe },
   chain: { name: 'Chaîne', icon: ICON.chain },
 };
-const REQ_NAMES = { B: 'Pigment Bleu', W: 'Pigment Blanc', flask3: '3ᵉ fiole', S: 'Séparateur', X: 'Croisement', M: 'Mélangeur', alembic: 'Grand alambic' };
+const REQ_NAMES = { B: 'Pigment Bleu', W: 'Pigment Blanc', flask3: '3ᵉ fiole', S: 'Séparateur', X: 'Croisement', M: 'Mélangeur', alembic: 'Grand alambic', boiler: 'Chaudronnerie', gloves: 'Gants d\'alchimiste' };
 const townName = (id) => TOWNS.find((t) => t.id === id)?.name || id;
 
 let tab = 'contracts';
@@ -59,7 +61,7 @@ export function CareerScreen(r, params) {
       <div class="c-icon">${ti.icon}</div>
       <div class="c-main">
         <div class="c-head"><b>${esc(c.client)}</b><span class="tier">${'◆'.repeat(c.tier)}</span></div>
-        <div class="c-sub">${ti.name} · ${townName(c.town)}</div>
+        <div class="c-sub">${c.react ? 'Labo instable ⚠' : ti.name} · ${townName(c.town)}</div>
         <div class="c-meta"><span class="gold">${ICON.coin}${c.reward}</span><span class="rep">${ICON.star}+${c.rep}</span><span>${due}</span></div>
         ${miss.length ? `<div class="c-req">${ICON.lock} Requis : ${miss.map((m) => REQ_NAMES[m]).join(', ')}</div>` : ''}
       </div>
@@ -151,6 +153,8 @@ export function CareerScreen(r, params) {
         const pay = payout(st, c, res.stars, res.cost);
         const r2 = complete(st, id, res.stars, res.cost);
         persist();
+        track({ contracts: 1, contracts3: res.stars === 3 ? 1 : 0, maxRep: st.rep, maxGold: st.gold });
+        if (st.ended && st.stats.failed === 0) track({ seasonsOnTime: 1 });
         play('coin');
         resultModal({
           title: 'Contrat rempli !', stars: res.stars,
@@ -198,14 +202,15 @@ export function CareerScreen(r, params) {
     }
     if (t.closest('[data-act="rest"]')) {
       return confirmModal('Passer la journée ?', 'Les offres du jour disparaissent et les échéances avancent.', () => {
-        const news = nextDay(st); persist(); rerender(); showNews(news); if (st.ended) seasonEnd();
+        const news = nextDay(st); persist(); rerender(); showNews(news);
+        if (st.ended) { if (st.stats.failed === 0) track({ seasonsOnTime: 1 }); seasonEnd(); }
       }, 'Dormir');
     }
     const bu = t.closest('[data-buy]');
     if (bu) {
       const err = buyUpgrade(st, bu.dataset.buy);
       if (err) { toast(err, 'warn'); play('error'); return; }
-      persist(); play('coin'); return rerender();
+      persist(); play('coin'); track({ upgrades: st.owned.length, maxGold: st.gold }); return rerender();
     }
     if (t.closest('[data-act="hints"]')) {
       const err = buyHints(st);
@@ -217,6 +222,7 @@ export function CareerScreen(r, params) {
   });
 
   r.appendChild(v);
+  setMusicIntensity(0.25);
   if (st.ended) setTimeout(seasonEnd, 200);
   return { destroy() {} };
 }
