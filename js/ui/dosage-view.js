@@ -98,7 +98,7 @@ export function DosageView(root, opts) {
       const fe = view.querySelector(`[data-flask="${i}"]`);
       const liq = fe.querySelector('.liquid');
       liq.style.height = (f.vol / f.cap) * 100 + '%';
-      if (f.vol) liq.style.background = mixColor(f.amt);
+      if (f.vol) { const lc = mixColor(f.amt); liq.style.background = lc; liq.style.setProperty('--lc', lc); }
       fe.querySelector('.flabel').textContent = `${f.vol}/${f.cap}`;
       fe.querySelector('.fchips').innerHTML = f.vol ? chips(toRatio(f.amt), { compact: true }) : '';
       fe.classList.toggle('selected', sel?.k === 'flask' && sel.i === i);
@@ -132,7 +132,7 @@ export function DosageView(root, opts) {
     const dx = b.x - a.x, dy = b.y - a.y;
     const len = Math.hypot(dx, dy);
     const ang = Math.atan2(dy, dx) * 180 / Math.PI;
-    const st = el(`<div class="stream" style="left:${a.x}px;top:${a.y}px;width:${len}px;background:${color};transform:rotate(${ang}deg)"></div>`);
+    const st = el(`<div class="stream" style="left:${a.x}px;top:${a.y}px;width:${len}px;background:${color};color:${color};transform:rotate(${ang}deg)"></div>`);
     layer.appendChild(st);
     st.animate([{ clipPath: 'inset(0 100% 0 0)', opacity: 1 }, { clipPath: 'inset(0 0 0 0)', opacity: 1, offset: 0.4 }, { clipPath: 'inset(0 0 0 100%)', opacity: 0.6 }],
       { duration: dur, easing: 'ease-in-out' }).onfinish = () => st.remove();

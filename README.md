@@ -1,6 +1,7 @@
 # Alchimie : l'Atelier
 
 Jeu de réflexion et de stratégie pour téléphone (Android), en français, jouable **hors-ligne**.
+Univers **néo-vapeur** : cuivre, laiton et rivets (steampunk) éclairés de néons cyan et magenta (cyberpunk).
 Tu diriges l'atelier d'un alchimiste : tu mesures et mélanges des liquides, tu construis des réseaux de tuyaux
 et tu gères ton commerce pour devenir **Grand Alchimiste** du royaume.
 
@@ -42,5 +43,6 @@ Organisation :
 - `js/chain/`, `js/career/` — chaînes de production, règles de la carrière (contrats, marché, améliorations).
 - `js/ui/` — écrans et vues de jeu.
 - `tools/` — génération des niveaux et des icônes.
+- `fonts/` — polices Orbitron, Rajdhani et Share Tech Mono (licence OFL), embarquées pour le hors-ligne.
 
 À chaque modification des fichiers du jeu, incrémenter `VERSION` dans `sw.js` pour que les téléphones récupèrent la mise à jour.

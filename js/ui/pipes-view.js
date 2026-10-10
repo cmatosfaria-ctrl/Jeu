@@ -8,42 +8,72 @@ import { simulate } from '../pipes/sim.js';
 import { play, buzz } from '../audio.js';
 
 const SIDE_PT = [[50, 0], [100, 50], [50, 100], [0, 50]];
-const EMPTY_INNER = '#17131f';
+const EMPTY_INNER = '#0b0a12';
 
+// Engrenage (séparateur) : dents autour d'un disque
+const GEAR = (() => {
+  let d = '';
+  const teeth = 10, R = 25, r = 19;
+  for (let i = 0; i < teeth * 2; i++) {
+    const a1 = (i / (teeth * 2)) * Math.PI * 2, a2 = ((i + 1) / (teeth * 2)) * Math.PI * 2;
+    const rad = i % 2 ? r : R;
+    d += `${i ? 'L' : 'M'}${(50 + rad * Math.cos(a1)).toFixed(1)} ${(50 + rad * Math.sin(a1)).toFixed(1)} L${(50 + rad * Math.cos(a2)).toFixed(1)} ${(50 + rad * Math.sin(a2)).toFixed(1)} `;
+  }
+  return d + 'Z';
+})();
+
+/** Bras de tuyau en cuivre vers un côté, avec bride rivetée et liquide néon. */
 function arm(side, color, flow, dirOut) {
-  const [x, y] = SIDE_PT[side];
-  // Le trait est orienté dans le sens du flux pour animer les pointillés.
-  const [x1, y1, x2, y2] = dirOut ? [50, 50, x, y] : [x, y, 50, 50];
-  return `<line class="pipe-o" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`
-    + `<line class="pipe-i" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${color}"/>`
-    + (flow ? `<line class="pipe-f" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>` : '');
+  const lit = color !== EMPTY_INNER;
+  const [y1, y2] = dirOut ? [50, 2] : [2, 50];
+  return `<g transform="rotate(${side * 90} 50 50)">`
+    + '<rect x="34" y="-1" width="32" height="52" fill="url(#g-copper)"/>'
+    + `<rect class="pipe-in" x="42" y="0" width="16" height="50" fill="${color}"${lit ? ' filter="url(#f-glow)"' : ''}/>`
+    + (flow ? `<line class="pipe-f" x1="50" y1="${y1}" x2="50" y2="${y2}"/>` : '')
+    + '<rect x="30" y="0" width="40" height="7" fill="url(#g-brass)"/><circle cx="34" cy="3.5" r="1.6" fill="#3a2a0c"/><circle cx="66" cy="3.5" r="1.6" fill="#3a2a0c"/>'
+    + '</g>';
 }
 
 function arrowAt(side, inward) {
-  // Petite flèche sur le bras : vers le centre (entrée) ou vers l'extérieur (sortie)
-  const d = inward ? 'M43 18 L50 28 L57 18' : 'M43 28 L50 18 L57 28';
+  const d = inward ? 'M43 16 L50 26 L57 16' : 'M43 26 L50 16 L57 26';
   return `<path class="arrow" d="${d}" transform="rotate(${side * 90} 50 50)"/>`;
 }
+
+const rivetsRing = (r, n, cls = '#3a2a0c') => Array.from({ length: n }, (_, i) => {
+  const a = (i / n) * Math.PI * 2;
+  return `<circle cx="${(50 + r * Math.cos(a)).toFixed(1)}" cy="${(50 + r * Math.sin(a)).toFixed(1)}" r="1.8" fill="${cls}"/>`;
+}).join('');
 
 /** SVG d'une cellule. flows : Map(side -> { amounts, out:boolean }) */
 export function cellSvg(c, flows = new Map(), extra = {}) {
   let body = '';
-  if (!c) return `<svg viewBox="0 0 100 100"><circle class="dot" cx="50" cy="50" r="3"/></svg>`;
+  if (!c) return '<svg viewBox="0 0 100 100"><path class="circuit" d="M44 50h12M50 44v12"/></svg>';
   const col = (side) => (flows.has(side) ? mixColor(flows.get(side).amounts) : EMPTY_INNER);
   if (c.kind === 'rock') {
-    body = '<path class="rock" d="M18 70 L28 34 L52 22 L76 32 L84 62 L66 82 L34 84 Z"/><path class="rock-l" d="M28 34 L48 50 L76 32 M48 50 L50 82"/>';
+    body = '<rect x="8" y="8" width="84" height="84" fill="url(#g-hazard)" opacity=".85"/>'
+      + '<rect x="18" y="18" width="64" height="64" fill="url(#g-steel-r)" stroke="#000" stroke-width="2"/>'
+      + '<path d="M28 30 L50 46 L72 30 M50 46 L50 72" stroke="#ff4f6d" stroke-width="2" fill="none" opacity=".7" filter="url(#f-glow)"/>'
+      + '<circle cx="24" cy="24" r="2.5" fill="#d6ae5c"/><circle cx="76" cy="24" r="2.5" fill="#d6ae5c"/><circle cx="24" cy="76" r="2.5" fill="#d6ae5c"/><circle cx="76" cy="76" r="2.5" fill="#d6ae5c"/>';
   } else if (c.kind === 'drain') {
-    body = '<circle class="drain" cx="50" cy="50" r="30"/>' + [36, 46, 56, 64].map((y) => `<line class="grate" x1="${30}" y1="${y}" x2="70" y2="${y}"/>`).join('');
+    body = '<circle cx="50" cy="50" r="33" fill="url(#g-brass-r)"/><circle cx="50" cy="50" r="26" fill="#050408" stroke="#ffb52e" stroke-width="2" filter="url(#f-glow)"/>'
+      + [38, 46, 54, 62].map((y) => `<line x1="32" y1="${y}" x2="68" y2="${y}" stroke="#7a5a22" stroke-width="4" stroke-linecap="round"/>`).join('')
+      + rivetsRing(29.5, 8);
   } else if (c.kind === 'src') {
-    body = arm(c.dir, mixColor(c.color), true, true) + `<circle class="src-ring" cx="50" cy="50" r="30"/><circle cx="50" cy="50" r="23" fill="${mixColor(c.color)}"/>`;
+    const cc = mixColor(c.color);
+    body = arm(c.dir, cc, true, true)
+      + '<circle cx="50" cy="50" r="34" fill="url(#g-brass-r)"/>' + rivetsRing(30, 10)
+      + '<circle cx="50" cy="50" r="25" fill="#06050a"/>'
+      + `<circle cx="50" cy="50" r="18" fill="${cc}" filter="url(#f-glow)"/><circle cx="44" cy="44" r="5" fill="#fff8"/>`;
   } else if (c.kind === 'tank') {
     const got = extra.tank;
-    const fill = got?.amounts ? mixColor(got.amounts) : 'transparent';
+    const tc = mixColor(c.target);
+    const fill = got?.amounts ? mixColor(got.amounts) : '#06050a';
     body = arm(c.dir, col(c.dir), flows.has(c.dir), false)
-      + `<rect class="tank" x="22" y="22" width="56" height="56" rx="12"/>`
-      + `<rect x="30" y="30" width="40" height="40" rx="8" fill="${fill}"/>`
-      + `<rect x="22" y="22" width="56" height="56" rx="12" fill="none" stroke="${mixColor(c.target)}" stroke-width="7"/>`
-      + (got?.ok ? '<path class="ok" d="M36 51 L46 61 L65 40"/>' : '');
+      + '<circle cx="50" cy="50" r="35" fill="url(#g-brass-r)"/>' + rivetsRing(31.5, 12)
+      + '<circle cx="50" cy="50" r="27" fill="#06050a"/>'
+      + `<circle cx="50" cy="50" r="23" fill="none" stroke="${tc}" stroke-width="5" filter="url(#f-glow)"/>`
+      + `<circle cx="50" cy="50" r="15" fill="${fill}"${got?.amounts ? ' filter="url(#f-glow)"' : ''}/>`
+      + (got?.ok ? '<path class="ok" d="M39 51 L47 59 L62 42"/>' : '');
   } else if (c.kind === 'pipe') {
     const P = PIECES[c.type];
     if (P.pairs) {
@@ -51,22 +81,32 @@ export function cellSvg(c, flows = new Map(), extra = {}) {
         const ra = (a + c.r) % 4, rb = (b + c.r) % 4;
         for (const sd of [ra, rb]) body += arm(sd, col(sd), flows.has(sd), flows.get(sd)?.out);
       });
-      if (c.type === 'X') body += '<circle class="hub" cx="50" cy="50" r="9"/>';
+      if (c.type === 'X') body += '<rect x="36" y="36" width="28" height="28" rx="4" fill="url(#g-brass-r)"/><circle cx="50" cy="50" r="5" fill="#26f2ff" filter="url(#f-glow)"/>';
+      else if (c.type === 'L') {
+        const fl = [...flows.values()][0];
+        body += `<circle cx="50" cy="50" r="16" fill="url(#g-copper)"/><circle cx="50" cy="50" r="8" fill="${fl ? mixColor(fl.amounts) : EMPTY_INNER}"/>`;
+      }
     } else {
       const rt = route(c.type, c.r, (P.ins[0] + c.r) % 4);
       for (const sd of rt.ins) body += arm(sd, col(sd), flows.has(sd), false);
       for (const sd of rt.outs) body += arm(sd, col(sd), flows.has(sd), true);
-      body += `<circle class="hub ${c.type === 'S' ? 'split' : 'mix'}" cx="50" cy="50" r="17"/>`;
-      body += c.type === 'S' ? '<text x="50" y="57" class="hub-t">½</text>' : '<text x="50" y="58" class="hub-t">+</text>';
+      if (c.type === 'S') {
+        body += `<path d="${GEAR}" fill="url(#g-brass-r)" stroke="#3a2a0c" stroke-width="1.5"/><circle cx="50" cy="50" r="13" fill="#04141a" stroke="#26f2ff" stroke-width="2" filter="url(#f-glow)"/><text x="50" y="56" class="hub-t">½</text>`;
+      } else {
+        body += '<circle cx="50" cy="50" r="23" fill="url(#g-brass-r)" stroke="#3a2a0c" stroke-width="1.5"/>'
+          + [0, 60, 120].map((a) => `<line x1="50" y1="29" x2="50" y2="71" stroke="#5a3f12" stroke-width="3" transform="rotate(${a} 50 50)"/>`).join('')
+          + '<circle cx="50" cy="50" r="12" fill="#1a0416" stroke="#ff2fd2" stroke-width="2" filter="url(#f-glow)"/><text x="50" y="56" class="hub-t">+</text>';
+      }
       for (const sd of rt.ins) body += arrowAt(sd, true);
       for (const sd of rt.outs) body += arrowAt(sd, false);
     }
-    if (c.fixed) body += '<circle class="bolt" cx="12" cy="12" r="4"/><circle class="bolt" cx="88" cy="12" r="4"/><circle class="bolt" cx="12" cy="88" r="4"/><circle class="bolt" cx="88" cy="88" r="4"/>';
+    if (c.fixed) body += '<circle class="bolt" cx="10" cy="10" r="4"/><circle class="bolt" cx="90" cy="10" r="4"/><circle class="bolt" cx="10" cy="90" r="4"/><circle class="bolt" cx="90" cy="90" r="4"/>';
   }
   for (const e of extra.errors || []) {
     if (e.side != null) {
       const [x, y] = SIDE_PT[e.side];
-      body += `<circle class="leak" cx="${(x + 50) / 2 + (x - 50) * 0.35}" cy="${(y + 50) / 2 + (y - 50) * 0.35}" r="9"/>`;
+      const cx = (x + 50) / 2 + (x - 50) * 0.42, cy = (y + 50) / 2 + (y - 50) * 0.42;
+      body += `<path class="leak" d="M${cx} ${cy - 9} C${cx + 7} ${cy - 1} ${cx + 6} ${cy + 7} ${cx} ${cy + 7} C${cx - 6} ${cy + 7} ${cx - 7} ${cy - 1} ${cx} ${cy - 9}Z"/>`;
     }
   }
   return `<svg viewBox="0 0 100 100">${body}</svg>`;

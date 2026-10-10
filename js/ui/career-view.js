@@ -115,7 +115,7 @@ export function CareerScreen(r, params) {
     const m = marketOf(st), y = marketOf(st, Math.max(1, st.day - 1));
     const trend = (p) => (st.day === 1 || m.prices[p] === y.prices[p] ? '<span class="muted">=</span>' : m.prices[p] > y.prices[p] ? '<span class="up">▲</span>' : '<span class="down">▼</span>');
     body.innerHTML = `${m.event ? `<div class="event">${m.event}</div>` : ''}
-      <section><h3>Pigments (prix par dose)</h3><div class="prices">${PRIMARIES.map((p) => `<div class="price"><i style="background:${PRIMARY_INFO[p].css}"></i>
+      <section><h3>Pigments (prix par dose)</h3><div class="prices">${PRIMARIES.map((p) => `<div class="price"><i style="background:${PRIMARY_INFO[p].css};color:${PRIMARY_INFO[p].css}"></i>
         <span>${PRIMARY_INFO[p].name}</span><b>${fmtGold(m.prices[p])}</b>${trend(p)}</div>`).join('')}</div></section>
       <section><h3>Pièces de tuyauterie</h3><div class="prices">${Object.keys(PIECE_PRICES).map((k) => `<div class="price"><span>${{ I: 'Droit', L: 'Coude', X: 'Croisement', S: 'Séparateur', M: 'Mélangeur' }[k]}</span><b>${fmtGold(pieceCost(st, k))}</b></div>`).join('')}</div></section>
       <p class="muted small-note">Les prix changent chaque jour. Un dosage économe (peu de pigments gaspillés à l'évier) et un réseau sobre rapportent plus.</p>`;

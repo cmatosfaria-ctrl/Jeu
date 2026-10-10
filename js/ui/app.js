@@ -86,18 +86,33 @@ export function startGrimoireLevel(track, id) {
 }
 
 // ---------- Accueil ----------
+function gearPath(cx, cy, R, r, teeth) {
+  let d = '';
+  for (let i = 0; i < teeth * 2; i++) {
+    const a1 = (i / (teeth * 2)) * Math.PI * 2, a2 = ((i + 1) / (teeth * 2)) * Math.PI * 2, rad = i % 2 ? r : R;
+    d += `${i ? 'L' : 'M'}${(cx + rad * Math.cos(a1)).toFixed(1)} ${(cy + rad * Math.sin(a1)).toFixed(1)} L${(cx + rad * Math.cos(a2)).toFixed(1)} ${(cy + rad * Math.sin(a2)).toFixed(1)} `;
+  }
+  return d + 'Z';
+}
+function gearSvg(size, cls, pos, color) {
+  return `<svg viewBox="0 0 100 100" width="${size}" height="${size}" style="${pos}"><g class="${cls}"><path d="${gearPath(50, 50, 48, 40, 12)}" fill="none" stroke="${color}" stroke-width="2.5" opacity=".55"/>
+    <circle cx="50" cy="50" r="22" fill="none" stroke="${color}" stroke-width="2" opacity=".5"/><circle cx="50" cy="50" r="6" fill="${color}" opacity=".5"/></g></svg>`;
+}
+
 export function Home(r) {
   const d = load();
   const c = d.career;
   const v = el(`<div class="screen menu home">
+    <div class="gears" aria-hidden="true">${gearSvg(150, 'gear-spin', 'top:-40px;right:-50px', '#c79a45')}${gearSvg(96, 'gear-spin rev', 'top:70px;right:70px', '#c06a34')}${gearSvg(180, 'gear-spin rev', 'bottom:-60px;left:-70px', '#c79a45')}${gearSvg(80, 'gear-spin', 'bottom:90px;left:80px', '#26f2ff')}</div>
     <div class="logo">
       <svg viewBox="0 0 120 120" class="logo-svg" aria-hidden="true">
-        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff5d6c"/><stop offset=".5" stop-color="#b456e8"/><stop offset="1" stop-color="#3aa0ff"/></linearGradient></defs>
-        <path d="M48 14h24M52 14v28L26 92a10 10 0 009 15h50a10 10 0 009-15L68 42V14" fill="none" stroke="#e9d9a8" stroke-width="5" stroke-linejoin="round"/>
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff2fd2"/><stop offset=".5" stop-color="#9b5cff"/><stop offset="1" stop-color="#26f2ff"/></linearGradient></defs>
+        <g class="gear-spin" opacity=".9"><path d="${gearPath(60, 60, 54, 46, 14)}" fill="none" stroke="#c79a45" stroke-width="3"/></g>
+        <path d="M48 14h24M52 14v28L26 92a10 10 0 009 15h50a10 10 0 009-15L68 42V14" fill="#07070d" stroke="#f0cf7e" stroke-width="5" stroke-linejoin="round"/>
         <path d="M37 76h46l9 17a6 6 0 01-5 9H33a6 6 0 01-5-9z" fill="url(#lg)"/>
-        <circle class="bub b1" cx="52" cy="86" r="4" fill="#fff8"/><circle class="bub b2" cx="66" cy="92" r="3" fill="#fff8"/><circle class="bub b3" cx="60" cy="80" r="2.5" fill="#fff8"/>
+        <circle class="bub b1" cx="52" cy="86" r="4" fill="#fff9"/><circle class="bub b2" cx="66" cy="92" r="3" fill="#fff9"/><circle class="bub b3" cx="60" cy="80" r="2.5" fill="#fff9"/>
       </svg>
-      <h1>Alchimie</h1><p class="subtitle">l'Atelier</p>
+      <h1>Alchimie</h1><p class="subtitle">L'Atelier · néo-vapeur</p>
     </div>
     <nav class="menu-list">
       ${c ? `<button class="btn primary big" data-go="career">${ICON.shop}<span>Continuer la carrière<small>Jour ${Math.min(c.day, 30)} · ${c.gold} or</small></span></button>` : ''}

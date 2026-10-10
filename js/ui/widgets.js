@@ -4,11 +4,11 @@ import { mixColor, ratioParts, mixName } from '../core/color.js';
 export function chips(ratio, { compact = false } = {}) {
   if (!ratio || ratio.every((v) => !v)) return '<span class="chips"></span>';
   return `<span class="chips ${compact ? 'compact' : ''}">${ratioParts(ratio)
-    .map((x) => `<span class="chip" title="${x.name}"><i style="background:${x.css}"></i>${x.k}</span>`).join('')}</span>`;
+    .map((x) => `<span class="chip" title="${x.name}"><i style="background:${x.css};color:${x.css}"></i>${x.k}</span>`).join('')}</span>`;
 }
 
 export function swatch(ratio, size = 28) {
-  return `<span class="swatch" style="width:${size}px;height:${size}px;background:${mixColor(ratio)}"></span>`;
+  return `<span class="swatch" style="width:${size}px;height:${size}px;background:${mixColor(ratio)};color:${mixColor(ratio)}"></span>`;
 }
 
 export function starsHtml(n, max = 3) {
