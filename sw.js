@@ -1,6 +1,6 @@
 // Service worker : met tout le jeu en cache pour jouer hors-ligne.
 // Pensez à incrémenter VERSION à chaque mise à jour du jeu.
-const VERSION = 'alchimie-v2';
+const VERSION = 'alchimie-v3';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'fonts/orbitron.woff2', 'fonts/rajdhani-500.woff2', 'fonts/rajdhani-700.woff2', 'fonts/sharetechmono.woff2',
@@ -12,7 +12,7 @@ const ASSETS = [
   'js/chain/chain.js', 'js/data/levels-data.js',
   'js/career/data.js', 'js/career/career.js', 'js/career/contracts.js',
   'js/ui/app.js', 'js/ui/dom.js', 'js/ui/icons.js', 'js/ui/widgets.js', 'js/ui/play.js',
-  'js/ui/dosage-view.js', 'js/ui/pipes-view.js', 'js/ui/career-view.js', 'js/ui/howto.js',
+  'js/ui/fx.js', 'js/ui/dosage-view.js', 'js/ui/pipes-view.js', 'js/ui/career-view.js', 'js/ui/howto.js',
 ];
 
 self.addEventListener('install', (e) => {

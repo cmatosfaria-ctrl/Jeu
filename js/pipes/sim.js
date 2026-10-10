@@ -21,6 +21,7 @@ export function simulate(board) {
   const errors = [];
   const segments = []; // flux qui traversent un côté d'une case (pour colorer)
   const tanks = new Map();
+  const tankT = new Map(); // instant d'arrivée du liquide dans chaque cuve
   const drains = new Map();
   const used = new Map(); // idx -> Set(clé de paire/entrée) pour détecter les collisions
   const mixers = new Map(); // idx -> { got: Map(side -> amounts), info }
@@ -28,16 +29,17 @@ export function simulate(board) {
   const inside = (x, y) => x >= 0 && y >= 0 && x < w && y < h;
 
   // Émettre depuis la case idx par le côté d
-  function emit(idx, d, amounts) {
+  // t : instant (en demi-cases parcourues) où le liquide entre dans ce segment — sert à l'animation.
+  function emit(idx, d, amounts, t = 0) {
     const x = idx % w, y = (idx / w) | 0;
-    segments.push({ idx, side: d, amounts, out: true });
+    segments.push({ idx, side: d, amounts, out: true, t });
     const nx = x + DX[d], ny = y + DY[d];
     if (!inside(nx, ny)) { errors.push({ idx, side: d, kind: 'fuite' }); return; }
     const nidx = ny * w + nx;
     const c = cells[nidx];
     const entry = opposite(d);
     if (!c || c.kind === 'rock') { errors.push({ idx, side: d, kind: 'fuite' }); return; }
-    queue.push({ idx: nidx, side: entry, amounts });
+    queue.push({ idx: nidx, side: entry, amounts, t: t + 1 });
   }
 
   for (let i = 0; i < cells.length; i++) {
@@ -53,17 +55,18 @@ export function simulate(board) {
         if (!m.done && m.got.size === m.info.ins.length) {
           m.done = true;
           const sum = [...m.got.values()].reduce((a, b) => addV(a, b));
-          for (const o of m.info.outs) emit(idx, o, sum);
+          for (const o of m.info.outs) emit(idx, o, sum, m.t + 1);
         }
       }
       continue;
     }
-    const { idx, side, amounts } = queue.shift();
+    const { idx, side, amounts, t } = queue.shift();
     const c = cells[idx];
-    segments.push({ idx, side, amounts });
+    segments.push({ idx, side, amounts, out: false, t });
     if (c.kind === 'tank') {
       if (side !== c.dir) { errors.push({ idx, side, kind: 'fuite' }); continue; }
       tanks.set(idx, tanks.has(idx) ? addV(tanks.get(idx), amounts) : amounts);
+      tankT.set(idx, Math.max(tankT.get(idx) || 0, t + 1));
       continue;
     }
     if (c.kind === 'drain') { drains.set(idx, drains.has(idx) ? addV(drains.get(idx), amounts) : amounts); continue; }
@@ -75,6 +78,7 @@ export function simulate(board) {
       if (!m) mixers.set(idx, (m = { got: new Map(), info: rt, done: false }));
       if (m.got.has(side) || m.done) { errors.push({ idx, side, kind: 'collision' }); continue; }
       m.got.set(side, amounts);
+      m.t = Math.max(m.t || 0, t);
       continue;
     }
     // Un tuyau (ou une paire du croisement) ne peut porter qu'un seul flux.
@@ -82,8 +86,8 @@ export function simulate(board) {
     const set = used.get(idx) || new Set();
     if (set.has(key)) { errors.push({ idx, side, kind: 'collision' }); continue; }
     set.add(key); used.set(idx, set);
-    if (rt.split) for (const o of rt.outs) emit(idx, o, mulV(amounts, HALF));
-    else emit(idx, rt.outs[0], amounts);
+    if (rt.split) for (const o of rt.outs) emit(idx, o, mulV(amounts, HALF), t + 1);
+    else emit(idx, rt.outs[0], amounts, t + 1);
   }
   for (const [idx, m] of mixers) if (!m.done) errors.push({ idx, kind: 'mélangeur' });
 
@@ -96,7 +100,7 @@ export function simulate(board) {
     const ratio = got ? toRatio(got) : null;
     const ok = !!got && !!c.target && ratio.join() === c.target.join();
     if (!ok) solved = false;
-    tankList.push({ idx: i, amounts: got, ratio, ok, flow: got ? total(got) : ZERO });
+    tankList.push({ idx: i, amounts: got, ratio, ok, flow: got ? total(got) : ZERO, t: tankT.get(i) || 0 });
   }
   return { errors, tanks: tankList, segments, drains, solved };
 }

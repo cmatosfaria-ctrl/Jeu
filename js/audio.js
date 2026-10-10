@@ -55,6 +55,8 @@ const SOUNDS = {
   coin: () => { tone(988, 0.08, { vol: 0.08, type: 'square' }); tone(1319, 0.2, { at: 0.08, vol: 0.08, type: 'square' }); },
   win: () => { steam(0.6, 0.05, 4000); [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.25, { at: i * 0.11, vol: 0.12, type: 'sawtooth' })); },
   flow: () => bubbles(4, 500),
+  // Réaction : pétillement montant + souffle
+  react: () => { bubbles(12, 600); steam(0.7, 0.05, 5000); tone(220, 0.6, { vol: 0.06, slide: 440, type: 'triangle' }); },
 };
 
 export function play(name) {

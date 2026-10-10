@@ -262,6 +262,42 @@ b { font-weight: 700; }
 .inv.erase svg { width: 26px; height: 26px; margin: 7px 0; color: var(--magenta); }
 .won .grid { border-color: var(--ok); box-shadow: 0 0 30px #4dff9a66; }
 
+/* ---------- Effets (particules, réactions, propagation) ---------- */
+.fx { position: absolute; display: block; border-radius: 50%; pointer-events: none; z-index: 30; }
+.fx-spark { background: var(--c); box-shadow: 0 0 8px var(--c), 0 0 2px #fff; }
+.fx-bubble { border: 1.5px solid var(--c); background: #ffffff22; box-shadow: 0 0 6px var(--c); }
+.fx-steam { background: radial-gradient(circle, #ffffff40, transparent 70%); filter: blur(2px); }
+.fx-ring { border: 3px solid var(--c); box-shadow: 0 0 14px var(--c), inset 0 0 10px var(--c); transform: translate(-50%, -50%); }
+/* Tuyaux : le liquide avance segment par segment */
+.pipe-liq.grow { transform-box: fill-box; animation: pipeGrow var(--step, 90ms) linear both; }
+.pipe-liq.o-b { transform-origin: 50% 100%; }
+.pipe-liq.o-t { transform-origin: 50% 0; }
+@keyframes pipeGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.late { animation: showLate .01s linear both, flow .6s linear infinite; }
+.leak.late { animation: showLate .01s linear both, drip .9s ease-in infinite; }
+@keyframes showLate { from { opacity: 0; } to { opacity: 1; } }
+.pop { transform-box: fill-box; transform-origin: center; animation: popIn .25s cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes popIn { from { transform: scale(0); } }
+.hub-burst { fill: none; stroke-width: 4; transform-box: fill-box; transform-origin: center; animation: hubBurst .7s ease-out both; }
+@keyframes hubBurst { 0% { transform: scale(.4); opacity: 0; } 15% { opacity: 1; } 100% { transform: scale(2.4); opacity: 0; } }
+.gear-turn { transform-box: fill-box; transform-origin: center; animation: gearTurn .6s ease-out both; }
+@keyframes gearTurn { from { transform: rotate(-120deg); } }
+.tank-wave { fill: none; stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: hubBurst 1s ease-out both; }
+.surge { animation: surge .5s ease-out both; }
+@keyframes surge { 40% { filter: brightness(1.9) drop-shadow(0 0 8px #26f2ff); } }
+/* Dosage : réaction de mélange */
+.flask.reacting .glass { animation: wobble .5s ease-in-out 2, reactGlow 1.4s ease-out; }
+.flask.reacting .liquid { transition: height .45s ease-in-out, background-color 1.4s ease-in-out; animation: effervesce 1.8s ease-out; }
+@keyframes effervesce { 25% { filter: brightness(1.7) saturate(1.5); } 60% { filter: brightness(1.2); } }
+.flask.reacting .liquid::before { animation-duration: .5s; opacity: .9; }
+@keyframes wobble { 25% { transform: rotate(-2.5deg); } 75% { transform: rotate(2.5deg); } }
+@keyframes reactGlow { 20% { box-shadow: 0 0 0 2px var(--rc, #fff), 0 0 40px var(--rc, #fff); } }
+.swirl { position: absolute; left: -60%; right: -60%; top: 50%; aspect-ratio: 1; transform: translateY(-50%); border-radius: 50%; pointer-events: none; z-index: 1;
+  background: repeating-conic-gradient(from 0deg, var(--c1) 0 30deg, var(--c2) 60deg 90deg, #ffffff 100deg, var(--c1) 120deg); filter: blur(3px); animation: swirl 1.9s ease-in-out forwards; }
+@keyframes swirl { 0% { transform: translateY(-50%) rotate(0) scale(.3); opacity: 0; } 20% { opacity: .85; } 70% { opacity: .6; } 100% { transform: translateY(-50%) rotate(720deg) scale(1.2); opacity: 0; } }
+.order.delivered { animation: delivered .7s ease-out; }
+@keyframes delivered { 30% { transform: scale(1.04); box-shadow: inset 0 0 40px var(--ok); } }
+
 /* ---------- Modales & toasts ---------- */
 .modal-wrap { position: fixed; inset: 0; background: #020207d0; backdrop-filter: blur(2px); display: grid; place-items: center; padding: 16px; z-index: 100; animation: fade .18s; }
 .modal-wrap.out { opacity: 0; transition: opacity .18s; }

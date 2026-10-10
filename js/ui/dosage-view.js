@@ -6,6 +6,7 @@ import { mixColor, mixName, toRatio } from '../core/color.js';
 import { initialState, applyMove, checkMove, isWon, starsFor, sourceFracs, moveCost } from '../dosage/engine.js';
 import { solve } from '../dosage/solver.js';
 import { play, buzz } from '../audio.js';
+import { burst, ring, celebrate, centerIn } from './fx.js';
 import { doseCost } from '../career/career.js';
 
 /**
@@ -18,6 +19,7 @@ export function DosageView(root, opts) {
   let history = [{ state: initialState(lv), move: null, cost: 0 }];
   let sel = null; // { k: 'flask'|'source', i }
   let busy = false, hintUsed = false, finished = false;
+  const holdColor = new Set(); // fioles en pleine réaction : la couleur change plus tard, progressivement
   const cur = () => history[history.length - 1];
   const movesCount = () => history.reduce((a, h) => a + (h.move ? moveCost(h.move) : 0), 0);
   const maxCap = Math.max(...lv.caps);
@@ -98,7 +100,7 @@ export function DosageView(root, opts) {
       const fe = view.querySelector(`[data-flask="${i}"]`);
       const liq = fe.querySelector('.liquid');
       liq.style.height = (f.vol / f.cap) * 100 + '%';
-      if (f.vol) { const lc = mixColor(f.amt); liq.style.background = lc; liq.style.setProperty('--lc', lc); }
+      if (f.vol && !holdColor.has(i)) { const lc = mixColor(f.amt); liq.style.backgroundColor = lc; liq.style.setProperty('--lc', lc); }
       fe.querySelector('.flabel').textContent = `${f.vol}/${f.cap}`;
       fe.querySelector('.fchips').innerHTML = f.vol ? chips(toRatio(f.amt), { compact: true }) : '';
       fe.classList.toggle('selected', sel?.k === 'flask' && sel.i === i);
@@ -150,6 +152,34 @@ export function DosageView(root, opts) {
   }
   function shake(e) { e.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-6px)' }, { transform: 'translateX(6px)' }, { transform: 'translateX(0)' }], { duration: 240 }); }
 
+  // ----- Réaction de mélange -----
+  // Quand un liquide rejoint un liquide de proportions différentes : remous, bulles, flash, puis virage de couleur.
+  function react(i, oldColor, newColor, startDelay) {
+    const fe = view.querySelector(`[data-flask="${i}"]`);
+    const liq = fe.querySelector('.liquid');
+    holdColor.add(i);
+    setTimeout(() => {
+      fe.classList.add('reacting');
+      fe.style.setProperty('--rc', newColor);
+      const sw = el(`<span class="swirl" style="--c1:${oldColor};--c2:${newColor}"></span>`);
+      liq.appendChild(sw);
+      play('react'); buzz([15, 40, 15]);
+      const layer = $('.layer');
+      const top = centerIn(liq, view, 0.05);
+      burst(layer, top.x, top.y, { n: 16, colors: [oldColor, newColor, '#ffffff'], spread: top.w * 0.9, rise: 90, size: 7, dur: 1100, kind: 'bubble' });
+      burst(layer, top.x, top.y, { n: 10, colors: [newColor, '#26f2ff'], spread: 60, size: 4, kind: 'spark', delay: 250 });
+      ring(layer, top.x, top.y, newColor, 110, 200);
+      // Le changement de couleur se fait en douceur (transition CSS de la classe .reacting)
+      setTimeout(() => {
+        holdColor.delete(i);
+        liq.style.backgroundColor = newColor;
+        liq.style.setProperty('--lc', newColor);
+      }, 350);
+      setTimeout(() => burst(layer, top.x, top.y, { n: 8, colors: ['#ffffff55'], spread: 40, rise: 80, size: 16, dur: 1300, kind: 'steam' }), 700);
+      setTimeout(() => { fe.classList.remove('reacting'); sw.remove(); }, 2000);
+    }, startDelay);
+  }
+
   // ----- Coups -----
   function doMove(m) {
     const s = cur().state;
@@ -164,6 +194,13 @@ export function DosageView(root, opts) {
     }
     const before = s;
     const { state, drawn } = applyMove(lv, s, m, srcFracs);
+    // Y a-t-il réaction ? (la fiole cible contenait déjà un liquide de proportions différentes)
+    const target = m.t === 'pour' ? m.b : m.t === 'fill' ? m.f : null;
+    let reaction = null;
+    if (target != null && before.flasks[target].vol > 0) {
+      const oldC = mixColor(before.flasks[target].amt), newC = mixColor(state.flasks[target].amt);
+      if (toRatio(before.flasks[target].amt).join() !== toRatio(state.flasks[target].amt).join()) reaction = { i: target, oldC, newC };
+    }
     let cost = 0;
     if (m.t === 'fill' && opts.prices) cost = doseCost(opts.prices, lv.sources[m.s].comp, drawn);
     history.push({ state, move: m, cost });
@@ -175,18 +212,26 @@ export function DosageView(root, opts) {
       tilt(fa, fb);
       setTimeout(() => stream(fa, fb, mixColor(before.flasks[m.a].amt), 420), 260);
       play('pour'); delay = 820;
+      if (reaction) { react(reaction.i, reaction.oldC, reaction.newC, 420); delay = 1500; }
       setTimeout(update, 300);
     } else if (m.t === 'fill') {
       const se = view.querySelector(`[data-source="${m.s}"]`), fe = view.querySelector(`[data-flask="${m.f}"]`);
       stream(se, fe, mixColor(lv.sources[m.s].comp), 480);
       play('fill'); delay = 420;
+      if (reaction) { react(reaction.i, reaction.oldC, reaction.newC, 250); delay = 1300; }
       setTimeout(update, 120);
     } else if (m.t === 'empty') {
       play('empty'); update(); delay = 250;
     } else if (m.t === 'deliver') {
       const fe = view.querySelector(`[data-flask="${m.f}"]`), oe = view.querySelector(`[data-order="${m.o}"]`);
-      stream(fe, oe, mixColor(before.flasks[m.f].amt), 400);
+      const dc = mixColor(before.flasks[m.f].amt);
+      stream(fe, oe, dc, 400);
       play('deliver'); buzz(25); delay = 380;
+      setTimeout(() => {
+        oe.classList.add('delivered');
+        const p = centerIn(oe, view);
+        burst($('.layer'), p.x, p.y, { n: 14, colors: [dc, '#4dff9a', '#f0cf7e'], spread: 90, size: 6 });
+      }, 350);
       setTimeout(update, 150);
     }
     setTimeout(() => {
@@ -203,7 +248,9 @@ export function DosageView(root, opts) {
     const cost = history.reduce((a, h) => a + h.cost, 0);
     play('win'); buzz([30, 60, 30]);
     view.classList.add('won');
-    setTimeout(() => opts.onWin({ moves, stars, cost, hintUsed }), 650);
+    const pts = [...view.querySelectorAll('.order')].map((o) => centerIn(o, view));
+    celebrate($('.layer'), pts, lv.orders.map((o) => mixColor(o.ratio)).concat(['#26f2ff', '#ff2fd2', '#f0cf7e']));
+    setTimeout(() => opts.onWin({ moves, stars, cost, hintUsed }), 1300);
   }
 
   function onTap(e) {
