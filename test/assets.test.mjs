@@ -9,3 +9,8 @@ test('le service worker met en cache tous les fichiers JS du jeu', () => {
   for (const f of walk('js')) assert.ok(sw.includes(`'${f}'`), `${f} absent de sw.js`);
   for (const m of sw.matchAll(/'((?:js|css|icons)\/[^']+)'/g)) assert.ok(existsSync(m[1]), `${m[1]} introuvable`);
 });
+
+test('le service worker met en cache tous les sons', () => {
+  const sw = readFileSync('sw.js', 'utf8');
+  for (const f of readdirSync('sounds').filter((x) => x.endsWith('.ogg'))) assert.ok(sw.includes(`'sounds/${f}'`), `sounds/${f} absent de sw.js`);
+});

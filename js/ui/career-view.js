@@ -182,7 +182,7 @@ export function CareerScreen(r, params) {
     const t = e.target;
     if (t.closest('[data-act="home"]')) return params.onHome();
     const tb = t.closest('[data-tab]');
-    if (tb) { tab = tb.dataset.tab; play('select'); return rerender(); }
+    if (tb) { tab = tb.dataset.tab; play('ui'); return rerender(); }
     const ac = t.closest('[data-accept]');
     if (ac) {
       const err = accept(st, ac.dataset.accept);

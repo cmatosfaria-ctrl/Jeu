@@ -295,7 +295,7 @@ export function PipesView(root, opts) {
       if (inv[tool] <= 0) tool = PIECE_ORDER.find((t) => inv[t] > 0) || tool;
     } else if (c.kind === 'pipe' && !c.fixed) {
       snapshot();
-      if (tool === 'erase') { cells[i] = null; inv[c.type]++; play('rotate'); }
+      if (tool === 'erase') { cells[i] = null; inv[c.type]++; play('remove'); }
       else {
         c.r = (c.r + 1) % PIECES[c.type].rotations;
         lastRot[c.type] = c.r;
@@ -314,7 +314,7 @@ export function PipesView(root, opts) {
     if (!c || c.kind !== 'pipe' || c.fixed) return;
     snapshot();
     cells[i] = null; inv[c.type]++;
-    play('rotate'); buzz(15); render();
+    play('remove'); buzz(15); render();
   }
 
   grid.addEventListener('pointerdown', (e) => {

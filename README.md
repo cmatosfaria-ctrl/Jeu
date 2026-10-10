@@ -43,6 +43,7 @@ Organisation :
 - `js/chain/`, `js/career/` — chaînes de production, règles de la carrière (contrats, marché, améliorations).
 - `js/ui/` — écrans et vues de jeu.
 - `tools/` — génération des niveaux et des icônes.
+- `sounds/` — bruitages Kenney (kenney.nl, licence CC0) ; les liquides (glouglous, effervescence) sont synthétisés en direct (`js/audio.js`).
 - `fonts/` — polices Orbitron, Rajdhani et Share Tech Mono (licence OFL), embarquées pour le hors-ligne.
 
 À chaque modification des fichiers du jeu, incrémenter `VERSION` dans `sw.js` pour que les téléphones récupèrent la mise à jour.

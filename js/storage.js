@@ -3,7 +3,7 @@ const KEY = 'alchimie-atelier-v1';
 let cache = null;
 
 const defaults = () => ({
-  settings: { sound: true, vibrate: true },
+  settings: { sound: true, vibrate: true, sfxVol: 0.8, ambVol: 0.35 },
   stars: {},      // id de niveau -> meilleures étoiles
   daily: {},      // date -> étoiles
   career: null,
@@ -14,7 +14,8 @@ export function load() {
   if (cache) return cache;
   try {
     const raw = localStorage.getItem(KEY);
-    cache = raw ? { ...defaults(), ...JSON.parse(raw) } : defaults();
+    const saved = raw ? JSON.parse(raw) : {};
+    cache = { ...defaults(), ...saved, settings: { ...defaults().settings, ...(saved.settings || {}) } };
   } catch {
     cache = defaults();
   }

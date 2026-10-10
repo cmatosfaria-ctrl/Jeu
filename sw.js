@@ -1,9 +1,11 @@
 // Service worker : met tout le jeu en cache pour jouer hors-ligne.
 // Pensez à incrémenter VERSION à chaque mise à jour du jeu.
-const VERSION = 'alchimie-v3';
+const VERSION = 'alchimie-v4';
 const ASSETS = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'fonts/orbitron.woff2', 'fonts/rajdhani-500.woff2', 'fonts/rajdhani-700.woff2', 'fonts/sharetechmono.woff2',
+  'sounds/tap-glass.ogg', 'sounds/tap-metal.ogg', 'sounds/ui.ogg', 'sounds/clank-1.ogg', 'sounds/clank-2.ogg', 'sounds/clank-3.ogg', 'sounds/ratchet.ogg', 'sounds/thud.ogg',
+  'sounds/error.ogg', 'sounds/glitch.ogg', 'sounds/deliver.ogg', 'sounds/win.ogg', 'sounds/bell.ogg', 'sounds/forcefield.ogg', 'sounds/steam.ogg', 'sounds/ambient.ogg',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png',
   'js/main.js', 'js/storage.js', 'js/audio.js',
   'js/core/fraction.js', 'js/core/color.js', 'js/core/rng.js',

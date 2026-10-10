@@ -409,6 +409,8 @@ b { font-weight: 700; }
 /* ---------- Réglages / aide ---------- */
 .toggle { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; margin-top: 10px; font-size: 1.02rem; }
 .toggle input { width: 22px; height: 22px; accent-color: var(--cyan); }
+.toggle.slider { gap: 14px; }
+.toggle.slider input { width: 50%; height: 22px; }
 .about { margin-top: 24px; font-size: .95rem; }
 .prose section { margin-bottom: 8px; }
 .prose p, .prose li { font-size: 1rem; }

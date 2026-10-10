@@ -11,7 +11,7 @@ import { Rng } from '../core/rng.js';
 import { playPuzzle, resultModal } from './play.js';
 import { CareerScreen } from './career-view.js';
 import { HowTo } from './howto.js';
-import { play } from '../audio.js';
+import { play, applyVolumes } from '../audio.js';
 
 const root = typeof document !== 'undefined' ? document.getElementById('app') : null;
 let screen = null;
@@ -127,7 +127,7 @@ export function Home(r) {
   </div>`);
   v.addEventListener('click', (e) => {
     const b = e.target.closest('[data-go]'); if (!b) return;
-    play('select');
+    play('ui');
     const g = b.dataset.go;
     if (g === 'career') show(CareerScreen, { onHome: () => show(Home) });
     if (g === 'newcareer') {
@@ -164,7 +164,7 @@ export function Grimoire(r, { track = 'dosage' }) {
   v.addEventListener('click', (e) => {
     if (e.target.closest('[data-act="back"]')) return show(Home);
     const tb = e.target.closest('[data-track]'); if (tb) return show(Grimoire, { track: tb.dataset.track });
-    const lb = e.target.closest('[data-id]'); if (lb) { play('select'); startGrimoireLevel(track, lb.dataset.id); }
+    const lb = e.target.closest('[data-id]'); if (lb) { play('ui'); startGrimoireLevel(track, lb.dataset.id); }
   });
   r.appendChild(v);
 }
@@ -233,14 +233,22 @@ function Settings(r) {
     <header class="bar"><button class="icon-btn" data-act="back" aria-label="Retour">${ICON.back}</button><div class="bar-title"><strong>Réglages</strong></div></header>
     <div class="scroll">
       <label class="toggle"><span>Sons</span><input type="checkbox" data-set="sound" ${d.settings.sound ? 'checked' : ''}></label>
+      <label class="toggle slider"><span>Effets sonores</span><input type="range" min="0" max="100" step="5" data-vol="sfxVol" value="${Math.round((d.settings.sfxVol ?? 0.8) * 100)}"></label>
+      <label class="toggle slider"><span>Ambiance machinerie</span><input type="range" min="0" max="100" step="5" data-vol="ambVol" value="${Math.round((d.settings.ambVol ?? 0.35) * 100)}"></label>
       <label class="toggle"><span>Vibrations</span><input type="checkbox" data-set="vibrate" ${d.settings.vibrate ? 'checked' : ''}></label>
       <button class="btn danger" data-act="reset">Effacer toute la progression</button>
       <div class="about"><p><b>Alchimie : l'Atelier</b></p><p class="muted">Jeu de réflexion et de stratégie : dosage de fioles, réseaux de tuyaux, chaînes de production et gestion d'atelier. Fonctionne hors-ligne.</p>
+      <p class="muted">Sons : Kenney (kenney.nl, CC0) et liquides synthétisés. Polices : Orbitron, Rajdhani, Share Tech Mono (OFL).</p>
       <p class="muted">Astuce : dans Chrome, menu ⋮ → « Ajouter à l'écran d'accueil » pour l'installer comme une application.</p></div>
     </div></div>`);
+  v.addEventListener('input', (e) => {
+    const k = e.target.dataset.vol; if (!k) return;
+    d.settings[k] = +e.target.value / 100; save(); applyVolumes();
+  });
   v.addEventListener('change', (e) => {
+    if (e.target.dataset.vol) { play(e.target.dataset.vol === 'sfxVol' ? 'deliver' : 'ui'); return; }
     const k = e.target.dataset.set; if (!k) return;
-    d.settings[k] = e.target.checked; save();
+    d.settings[k] = e.target.checked; save(); applyVolumes();
     if (k === 'sound' && e.target.checked) play('coin');
   });
   v.addEventListener('click', (e) => {
